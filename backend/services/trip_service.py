@@ -16,6 +16,7 @@ def recomendation_destination(country):
     japan = ["tokyo", "shibuya", "akihabara", "kyoto", "osaka"]
     amerika = ["new york", "los angles", "chicago", "michigan", "oregon"]
     indonesia = ["bandung", "jakarta", "semarang", "malang", "yogyakarta"]
+    country = country.lower()
     print("Recommended Places")
     if country == "japan":
         for place in japan:
