@@ -7,6 +7,7 @@ from services.trip_service import (
     recomendation_destination,
     get_travel_season
 )
+from services.bedrock_service import get_ai_recommendation
 from models.trip import Trip
 from database import SessionLocal, init_db
 
@@ -44,7 +45,7 @@ def home():
 def health():
     return {"status": "OK"}
 
-# GET
+# GET Recommendations
 @app.get("/api/v1/recommendations/{country}")
 def get_destinations(country: str):
     places = recomendation_destination(country)
@@ -63,28 +64,49 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
         transportation_cost=request.transportation_cost, 
         food_cost=request.food_cost
     )
+    
+    # 1. Dapatkan kategori (travel style) terlebih dahulu
     category, vehicle = get_trip_category(request.budget)
     season = get_travel_season(request.travel_month)
+
+    # 2. Panggil AI Recommendation dengan 4 parameter yang tepat
+    ai_itinerary = get_ai_recommendation(
+        days=request.days,
+        destination=request.destination,
+        budget=budget_perday,
+        travel_style=category
+    )
 
     trip = Trip(
         destination=request.destination,
         days=request.days,
         budget=request.budget,
+        hotel_cost=request.hotel_cost,
+        transportation_cost=request.transportation_cost,
+        food_cost=request.food_cost,
+        travel_month=request.travel_month,
         category=category,
         daily_budget=budget_perday,
+        vehicle=vehicle,
+        season=season,
+        total_estimated_cost=total_estimated_cost,
+        rest_budget=rest_budget,
+        ai_recommendation=ai_itinerary 
     )
 
     db.add(trip)
     db.commit()
     db.refresh(trip)
     
+    # 3. Tampilkan hasil AI di dalam response
     response = {
         "trip_data": trip,
         "trip_details": {
             "vehicle": vehicle,
             "season": season,
             "total_estimated_cost_per_day": total_estimated_cost,
-            "rest_budget": rest_budget
+            "rest_budget": rest_budget,
+            "ai_itinerary": ai_itinerary 
         }
     }
     return response

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import Column, Integer, String, Float, Text
 from database import Base
 
 class Trip(Base):
@@ -18,3 +18,4 @@ class Trip(Base):
     season               = Column(String,  nullable=True)
     total_estimated_cost = Column(Float,   nullable=True)
     rest_budget          = Column(Float,   nullable=True)
+    ai_recommendation    = Column(Text,    nullable = True)
