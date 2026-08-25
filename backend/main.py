@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from services.trip_service import (
@@ -11,6 +12,19 @@ from services.bedrock_service import get_ai_recommendation
 from models.trip import Trip
 from database import SessionLocal, init_db
 
+# 1. Inisialisasi Aplikasi terlebih dahulu
+app = FastAPI()
+
+# 2. Tambahkan Middleware CORS agar Next.js bisa mengambil data
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],    # Mengizinkan request dari semua URL (localhost maupun IP jaringan)
+    allow_credentials=True,
+    allow_methods=["*"],    # Mengizinkan semua method (GET, POST, PUT, DELETE)
+    allow_headers=["*"],    # Mengizinkan semua header
+)
+
+# 3. Pydantic Models
 class TripRequest(BaseModel):
     destination: str
     days: int
@@ -26,7 +40,7 @@ class TripUpdateBudget(BaseModel):
     transportation_cost: float
     food_cost: float
 
-app = FastAPI()
+# 4. Inisialisasi Database
 init_db()
 
 def get_db():
@@ -36,11 +50,14 @@ def get_db():
     finally:
         db.close()
 
-# GET
+# --- ENDPOINTS ---
+
+# GET Root
 @app.get("/")
 def home():
     return {"message": "Welcome to KelanaAI"}
 
+# GET Health Check
 @app.get("/health")
 def health():
     return {"status": "OK"}
@@ -54,7 +71,7 @@ def get_destinations(country: str):
         "recommended_places": places
     }
 
-# POST
+# POST Create Trip
 @app.post("/api/v1/trips")
 def create_trip(request: TripRequest, db: Session = Depends(get_db)):
     budget_perday, total_estimated_cost, rest_budget = calculate_budget(
@@ -65,11 +82,11 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
         food_cost=request.food_cost
     )
     
-    # 1. Dapatkan kategori (travel style) terlebih dahulu
+    # Dapatkan kategori (travel style) dan musim
     category, vehicle = get_trip_category(request.budget)
     season = get_travel_season(request.travel_month)
 
-    # 2. Panggil AI Recommendation dengan 4 parameter yang tepat
+    # Panggil AI Recommendation dari AWS Bedrock
     ai_itinerary = get_ai_recommendation(
         days=request.days,
         destination=request.destination,
@@ -77,6 +94,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
         travel_style=category
     )
 
+    # Simpan ke Database
     trip = Trip(
         destination=request.destination,
         days=request.days,
@@ -98,20 +116,18 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(trip)
     
-    # 3. Tampilkan hasil AI di dalam response
-    response = {
-        "trip_data": trip,
-        "trip_details": {
-            "vehicle": vehicle,
-            "season": season,
-            "total_estimated_cost_per_day": total_estimated_cost,
-            "rest_budget": rest_budget,
-            "ai_itinerary": ai_itinerary 
+    # Format response manual agar mudah dirender oleh Next.js
+    return {
+        "message": "Trip beserta rekomendasi AI berhasil disimpan!",
+        "trip_data": {
+            "destination": trip.destination,
+            "category": trip.category,
+            "season": trip.season,
+            "ai_recommendation": trip.ai_recommendation
         }
     }
-    return response
 
-# PUT 
+# PUT Update Budget
 @app.put("/api/v1/trips/{trip_id}")
 def update_trip_budget(trip_id: int, request: TripUpdateBudget, db: Session = Depends(get_db)):
     trip = db.query(Trip).filter(Trip.id == trip_id).first()
@@ -121,6 +137,7 @@ def update_trip_budget(trip_id: int, request: TripUpdateBudget, db: Session = De
 
     trip.budget = request.budget
     
+    # Hitung ulang budget
     budget_perday, _, _ = calculate_budget(
         days=trip.days, 
         budget=request.budget, 
@@ -129,14 +146,25 @@ def update_trip_budget(trip_id: int, request: TripUpdateBudget, db: Session = De
         food_cost=request.food_cost
     )
     
+    # Hitung ulang kategori
     category, vehicle = get_trip_category(request.budget)
     trip.daily_budget = budget_perday
     trip.category = category
+    
     db.commit()
     db.refresh(trip)
-    return trip
+    
+    return {
+        "message": "Trip budget berhasil diperbarui!",
+        "trip_data": {
+            "destination": trip.destination,
+            "category": trip.category,
+            "season": trip.season,
+            "ai_recommendation": trip.ai_recommendation
+        }
+    }
 
-# DELETE
+# DELETE Trip
 @app.delete("/api/v1/trips/{trip_id}")
 def delete_trip(trip_id: int, db: Session = Depends(get_db)):
     trip = db.query(Trip).filter(Trip.id == trip_id).first()

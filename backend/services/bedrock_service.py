@@ -16,20 +16,21 @@ def get_bedrock_client():
 def get_ai_recommendation(days: int, destination: str, budget: float, travel_style: str):
     client = get_bedrock_client()
     prompt = f"""You are an experienced travel planner.
-        Plan a {days}-day itinerary for {destination}.
-        Budget: {budget} based on currency of destination.
-        Travel Style: {travel_style}.
+            Plan a {days}-day itinerary for {destination}.
+            Budget: {budget} based on currency of destination.
+            Travel Style: {travel_style}.
 
-        Please ensure your response specifically includes:
-        - Daily itinerary structured as follows:
-        * Morning activities: Provide 2-3 specific activities per day.
-        * Afternoon activities: Include cultural sites and local experiences.
-        * Evening activities: Add dinner spots and nightlife suggestions.
-        - Estimated daily budget
-        - Local food recommendations
-        - Transportation suggestions
+            Please ensure your response specifically includes exactly these sections:
+            
+            1. Daily itinerary: (Provide a clear day-by-day breakdown)
+            * Morning activities: Provide 2-3 specific activities per day.
+            * Afternoon activities: Include cultural sites and local experiences.
+            * Evening activities: Add dinner spots and nightlife suggestions.
+            2. Travel tips section: (Include transportation, weather, or cultural tips)
+            3. Local food recommendations: (Must-try local dishes and restaurants)
+            4. Estimated budget breakdown: (Show how the {budget} budget is allocated across the {days} days)
 
-        Please give the answer in markdown format and use bulleted lists."""
+            Please give the answer in markdown format and use bulleted lists."""
 
     model_id = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
 
