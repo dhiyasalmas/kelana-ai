@@ -3,3 +3,4 @@ backend/.env
 backend/create_db.py
 backend/__pycache__
 backend/services/__pycache__
+frontend/.env

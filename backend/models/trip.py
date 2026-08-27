@@ -12,6 +12,7 @@ class Trip(Base):
     transportation_cost  = Column(Float,   nullable=True)
     food_cost            = Column(Float,   nullable=True)
     travel_month         = Column(String,  nullable=True)
+    travel_style         = Column(String, nullable=True)
     category             = Column(String,  nullable=False)
     daily_budget         = Column(Float,   nullable=False)
     vehicle              = Column(String,  nullable=True)

@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from "remark-gfm";
 
 export default function KelanaAIPlanner() {
-  // 1. Inisialisasi State
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
@@ -16,15 +16,14 @@ export default function KelanaAIPlanner() {
     hotel_cost: 0,
     transportation_cost: 0,
     food_cost: 0,
-    travel_month: 'January'
+    travel_month: 'January',
+    travel_style: 'Solo'
   });
 
-  // 2. Fungsi untuk menangani perubahan input form
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 3. Fungsi Submit ke Backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -32,7 +31,7 @@ export default function KelanaAIPlanner() {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/trips', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/trips`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,7 +41,8 @@ export default function KelanaAIPlanner() {
           hotel_cost: Number(formData.hotel_cost),
           transportation_cost: Number(formData.transportation_cost),
           food_cost: Number(formData.food_cost),
-          travel_month: formData.travel_month
+          travel_month: formData.travel_month,
+          travel_style: formData.travel_style
         }),
       });
 
@@ -59,10 +59,65 @@ export default function KelanaAIPlanner() {
     }
   };
 
+  const renderItineraryCards = (markdownText: string) => {
+    const sections = markdownText.split(/(?=(?:^|\n)(?:###|##|#|\*\*)?\s*Day \d+)/i);
+    return sections.map((section, index) => {
+      if (!section.trim()) return null;
+
+      // Bagian Intro / Judul (Sebelum hari pertama)
+      if (index === 0 && !section.match(/Day \d+/i)) {
+        return (
+          <div key={index} className="mb-6 px-2">
+            <ReactMarkdown
+              components={{
+                h1: ({node, ...props}) => <h1 className="text-2xl font-extrabold mb-4 text-slate-900" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-4 text-slate-900 border-b border-slate-200 pb-2" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-lg font-bold mb-3 text-slate-800" {...props} />,
+                p: ({node, ...props}) => <p className="mb-4 text-slate-600 leading-relaxed" {...props} />,
+              }}
+            >
+              {section}
+            </ReactMarkdown>
+          </div>
+        );
+      }
+
+      // KARTU CONTAINER: Untuk setiap hari (Day 1, Day 2, dst)
+      return (
+        <div key={index} className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-5 hover:shadow-md transition-shadow">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]} 
+            components={{
+              h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-4 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
+              h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-4 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
+              h3: ({node, ...props}) => <h3 className="text-lg font-bold mb-3 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
+              ul: ({node, ...props}) => <ul className="list-disc pl-6 space-y-2 mb-4" {...props} />,
+              li: ({node, ...props}) => <li className="text-slate-700 marker:text-blue-500" {...props} />,
+              p: ({node, ...props}) => <p className="mb-3 text-slate-700 leading-relaxed" {...props} />,
+              strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+              
+              // --- TAMBAHKAN STYLING TABEL DI BAWAH INI ---
+              table: ({node, ...props}) => (
+                <div className="overflow-x-auto my-6 rounded-lg border border-slate-200">
+                  <table className="w-full text-left border-collapse text-sm" {...props} />
+                </div>
+              ),
+              thead: ({node, ...props}) => <thead className="bg-slate-100 text-slate-700 uppercase text-xs font-semibold" {...props} />,
+              th: ({node, ...props}) => <th className="px-4 py-3 border-b border-slate-200" {...props} />,
+              td: ({node, ...props}) => <td className="px-4 py-3 border-b border-slate-100 text-slate-600" {...props} />,
+            }}
+          >
+            {section}
+        </ReactMarkdown>
+        </div>
+      );
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
       
-      {/* 1. HERO SECTION & DESTINATION IMAGE */}
+      {/* 1. HERO SECTION */}
       <header className="relative w-full h-[35vh] md:h-[45vh] bg-slate-900 flex items-center justify-center">
         <img
           src="https://images.unsplash.com/photo-1549473889-14f410d83298?auto=format&fit=crop&w=1920&q=80" 
@@ -73,9 +128,15 @@ export default function KelanaAIPlanner() {
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
             KelanaAI Travel Planner
           </h1>
-          <p className="text-lg md:text-xl text-slate-200 max-w-2xl mx-auto drop-shadow-md">
+          <p className="text-lg md:text-xl text-slate-200 max-w-2xl mx-auto drop-shadow-md mb-6">
             Rencanakan perjalanan impianmu dengan bantuan kecerdasan buatan.
           </p>
+          <a 
+            href="/trips" 
+            className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/50 text-white font-semibold px-6 py-2.5 rounded-full transition-all"
+          >
+            Lihat Daftar Perjalananku &rarr;
+          </a>
         </div>
       </header>
 
@@ -87,10 +148,7 @@ export default function KelanaAIPlanner() {
           <div className="lg:col-span-5 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
             <h2 className="text-2xl font-bold mb-6 text-slate-800">Detail Perjalanan</h2>
             
-            {/* Ubah menjadi form dan panggil handleSubmit */}
             <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {/* Input Destinasi */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Destinasi</label>
                 <input 
@@ -104,7 +162,6 @@ export default function KelanaAIPlanner() {
                 />
               </div>
 
-              {/* Grid 2 Kolom untuk HP & Desktop */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Durasi (Hari)</label>
@@ -115,7 +172,6 @@ export default function KelanaAIPlanner() {
                     required
                     value={formData.days}
                     onChange={handleChange} 
-                    placeholder="Misal: 3" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none"
                   />
                 </div>
@@ -127,23 +183,13 @@ export default function KelanaAIPlanner() {
                     onChange={handleChange}
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none cursor-pointer"
                   >
-                    <option value="January">Januari</option>
-                    <option value="February">Februari</option>
-                    <option value="March">Maret</option>
-                    <option value="April">April</option>
-                    <option value="May">Mei</option>
-                    <option value="June">Juni</option>
-                    <option value="July">Juli</option>
-                    <option value="August">Agustus</option>
-                    <option value="September">September</option>
-                    <option value="October">Oktober</option>
-                    <option value="November">November</option>
-                    <option value="December">Desember</option>
+                    {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              {/* Input Budget */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Total Budget</label>
                 <input 
@@ -153,12 +199,10 @@ export default function KelanaAIPlanner() {
                   required
                   value={formData.budget}
                   onChange={handleChange} 
-                  placeholder="Misal: 5000000" 
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none"
                 />
               </div>
 
-              {/* Box Estimasi Biaya */}
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
                 <p className="text-sm font-semibold text-slate-700 mb-3">Estimasi Biaya Harian:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -177,14 +221,28 @@ export default function KelanaAIPlanner() {
                 </div>
               </div>
 
-              {/* Error Message */}
+              {/* Input Gaya Perjalanan */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Gaya Perjalanan</label>
+                <select 
+                  name="travel_style"
+                  value={formData.travel_style}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none cursor-pointer"
+                >
+                  <option value="Solo">Solo (Sendirian)</option>
+                  <option value="Couple">Couple (Pasangan)</option>
+                  <option value="Family">Family (Keluarga)</option>
+                  <option value="Friends">Friends (Bersama Teman)</option>
+                </select>
+              </div>
+
               {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
 
-              {/* Tombol Utama */}
               <button 
                 type="submit" 
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 mt-4 disabled:opacity-50 disabled:transform-none"
+                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md hover:shadow-lg mt-4 disabled:opacity-50"
               >
                 {loading ? 'AI Sedang Merencanakan...' : 'Buat Rencana Perjalanan'}
               </button>
@@ -192,15 +250,14 @@ export default function KelanaAIPlanner() {
           </div>
 
           {/* Kolom Kanan: Rekomendasi Panel */}
-          <div className="lg:col-span-7 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col max-h-[800px] overflow-y-auto">
+          <div className="lg:col-span-7 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col max-h-[850px] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-6 text-slate-800 pb-4 border-b border-slate-100">
               Rekomendasi KelanaAI
             </h2>
             
-            {/* Conditional Rendering: Tampilkan hasil jika ada, jika kosong tampilkan Empty State */}
             {result ? (
-              <div className="space-y-6">
-                <div className="flex flex-wrap gap-3 mb-2">
+              <div className="space-y-4">
+                <div className="flex flex-wrap gap-3 mb-4">
                   <span className="bg-blue-100 text-blue-700 font-semibold px-4 py-1.5 rounded-full text-sm">
                     Musim: {result.trip_data?.season || "Tidak diketahui"}
                   </span>
@@ -209,30 +266,16 @@ export default function KelanaAIPlanner() {
                   </span>
                 </div>
                 
-                {/* Render Markdown Hasil AI */}
-                <div className="leading-relaxed text-slate-700 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                {/* PEMANGGILAN FUNGSI KARTU DI SINI */}
+                <div className="mt-2">
                   {result.trip_data?.ai_recommendation ? (
-                    <ReactMarkdown
-                      components={{
-                        h1: ({node, ...props}) => <h1 className="text-3xl font-extrabold mt-6 mb-4 text-slate-900" {...props} />,
-                        h2: ({node, ...props}) => <h2 className="text-2xl font-bold mt-8 mb-4 text-slate-900 border-b border-slate-300 pb-2" {...props} />,
-                        h3: ({node, ...props}) => <h3 className="text-xl font-bold mt-6 mb-3 text-slate-800" {...props} />,
-                        ul: ({node, ...props}) => <ul className="list-disc pl-6 space-y-2 mb-6" {...props} />,
-                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 space-y-2 mb-6" {...props} />,
-                        li: ({node, ...props}) => <li className="text-slate-700 marker:text-blue-500" {...props} />,
-                        p: ({node, ...props}) => <p className="mb-4 text-slate-700 leading-relaxed" {...props} />,
-                        strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
-                      }}
-                    >
-                      {result.trip_data.ai_recommendation}
-                    </ReactMarkdown>
+                    renderItineraryCards(result.trip_data.ai_recommendation)
                   ) : (
                     "Menunggu rekomendasi AI..."
                   )}
                 </div>
               </div>
             ) : (
-              /* Empty State */
               <div className="flex-grow flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200 min-h-[300px]">
                 <svg className="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -246,23 +289,6 @@ export default function KelanaAIPlanner() {
 
         </div>
       </main>
-
-      {/* 3. FOOTER */}
-      <footer className="bg-white border-t border-slate-200 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-slate-500 text-sm font-medium">
-            © {new Date().getFullYear()} KelanaAI. All rights reserved.
-          </p>
-          
-          <div className="flex flex-wrap justify-center gap-6 text-sm font-semibold text-slate-500">
-            <a href="#" className="hover:text-blue-600 transition-colors">Tentang Kami</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Syarat & Ketentuan</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Kebijakan Privasi</a>
-            <a href="#" className="hover:text-blue-600 transition-colors">Bantuan</a>
-          </div>
-        </div>
-      </footer>
-
     </div>
   );
 }

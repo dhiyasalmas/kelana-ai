@@ -1,3 +1,5 @@
+import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -12,13 +14,19 @@ from services.bedrock_service import get_ai_recommendation
 from models.trip import Trip
 from database import SessionLocal, init_db
 
+# Memuat variabel environment dari file .env
+load_dotenv()
+
 # 1. Inisialisasi Aplikasi terlebih dahulu
 app = FastAPI()
+
+# Mengambil nilai FRONTEND_URL dari .env (gunakan default localhost:3000 jika tidak ada)
+frontend_url = os.getenv("FRONTEND_URL")
 
 # 2. Tambahkan Middleware CORS agar Next.js bisa mengambil data
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],    # Mengizinkan request dari semua URL (localhost maupun IP jaringan)
+    allow_origins=[frontend_url],    # Mengizinkan request dari semua URL (localhost maupun IP jaringan)
     allow_credentials=True,
     allow_methods=["*"],    # Mengizinkan semua method (GET, POST, PUT, DELETE)
     allow_headers=["*"],    # Mengizinkan semua header
@@ -33,6 +41,7 @@ class TripRequest(BaseModel):
     transportation_cost: float
     food_cost: float
     travel_month: str 
+    travel_style: str
 
 class TripUpdateBudget(BaseModel):
     budget: float
@@ -83,7 +92,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
     )
     
     # Dapatkan kategori (travel style) dan musim
-    category, vehicle = get_trip_category(request.budget)
+    category, vehicle = get_trip_category(daily_budget=budget_perday, currency="IDR")
     season = get_travel_season(request.travel_month)
 
     # Panggil AI Recommendation dari AWS Bedrock
@@ -91,7 +100,8 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
         days=request.days,
         destination=request.destination,
         budget=budget_perday,
-        travel_style=category
+        travel_style=f"{request.travel_style} Travel, {category} Budget",
+
     )
 
     # Simpan ke Database
@@ -103,6 +113,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db)):
         transportation_cost=request.transportation_cost,
         food_cost=request.food_cost,
         travel_month=request.travel_month,
+        travel_style=request.travel_style,
         category=category,
         daily_budget=budget_perday,
         vehicle=vehicle,
@@ -163,6 +174,23 @@ def update_trip_budget(trip_id: int, request: TripUpdateBudget, db: Session = De
             "ai_recommendation": trip.ai_recommendation
         }
     }
+
+# --- TAMBAHKAN KODE INI DI MAIN.PY ---
+
+# GET All Trips (Untuk halaman daftar trip)
+@app.get("/api/v1/trips")
+def get_all_trips(db: Session = Depends(get_db)):
+    # Mengambil semua trip, diurutkan dari yang terbaru (descending)
+    trips = db.query(Trip).order_by(Trip.id.desc()).all()
+    return trips
+
+# GET Single Trip (Untuk halaman detail trip)
+@app.get("/api/v1/trips/{trip_id}")
+def get_single_trip(trip_id: int, db: Session = Depends(get_db)):
+    trip = db.query(Trip).filter(Trip.id == trip_id).first()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return trip
 
 # DELETE Trip
 @app.delete("/api/v1/trips/{trip_id}")
