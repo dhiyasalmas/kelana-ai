@@ -1,10 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from "remark-gfm";
+import remarkGfm from 'remark-gfm';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function KelanaAIPlanner() {
+  const router = useRouter();
+  
+  // State untuk autentikasi
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
@@ -20,6 +28,23 @@ export default function KelanaAIPlanner() {
     travel_style: 'Solo'
   });
 
+  // Mengecek token saat halaman dimuat
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      setIsLoggedIn(true);
+      setIsChecking(false);
+    } else {
+      router.push('/login');
+    }
+  }, [router]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    router.push('/login'); 
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -30,10 +55,15 @@ export default function KelanaAIPlanner() {
     setError('');
     setResult(null);
 
+    const token = localStorage.getItem('token');
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/trips`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           destination: formData.destination,
           days: Number(formData.days),
@@ -60,15 +90,19 @@ export default function KelanaAIPlanner() {
   };
 
   const renderItineraryCards = (markdownText: string) => {
-    const sections = markdownText.split(/(?=(?:^|\n)(?:###|##|#|\*\*)?\s*Day \d+)/i);
+    const splitRegex = /(?=(?:^|\n)(?:###|##|#|\*\*)?\s*(?:Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion))/i;
+    const sections = markdownText.split(splitRegex);
+
     return sections.map((section, index) => {
       if (!section.trim()) return null;
 
-      // Bagian Intro / Judul (Sebelum hari pertama)
-      if (index === 0 && !section.match(/Day \d+/i)) {
+      const isMainSection = section.match(/(?:^|\n)(?:###|##|#|\*\*)?\s*(?:Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion)/i);
+
+      if (index === 0 && !isMainSection) {
         return (
           <div key={index} className="mb-6 px-2">
             <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 h1: ({node, ...props}) => <h1 className="text-2xl font-extrabold mb-4 text-slate-900" {...props} />,
                 h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-4 text-slate-900 border-b border-slate-200 pb-2" {...props} />,
@@ -82,11 +116,10 @@ export default function KelanaAIPlanner() {
         );
       }
 
-      // KARTU CONTAINER: Untuk setiap hari (Day 1, Day 2, dst)
       return (
         <div key={index} className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-5 hover:shadow-md transition-shadow">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]} 
+            remarkPlugins={[remarkGfm]}
             components={{
               h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-4 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
               h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-4 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
@@ -95,8 +128,6 @@ export default function KelanaAIPlanner() {
               li: ({node, ...props}) => <li className="text-slate-700 marker:text-blue-500" {...props} />,
               p: ({node, ...props}) => <p className="mb-3 text-slate-700 leading-relaxed" {...props} />,
               strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
-              
-              // --- TAMBAHKAN STYLING TABEL DI BAWAH INI ---
               table: ({node, ...props}) => (
                 <div className="overflow-x-auto my-6 rounded-lg border border-slate-200">
                   <table className="w-full text-left border-collapse text-sm" {...props} />
@@ -108,81 +139,82 @@ export default function KelanaAIPlanner() {
             }}
           >
             {section}
-        </ReactMarkdown>
+          </ReactMarkdown>
         </div>
       );
     });
   };
 
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
+        <p className="text-slate-300 font-medium">Memeriksa akses...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-800">
-      
-      {/* 1. HERO SECTION */}
       <header className="relative w-full h-[35vh] md:h-[45vh] bg-slate-900 flex items-center justify-center">
         <img
           src="https://images.unsplash.com/photo-1549473889-14f410d83298?auto=format&fit=crop&w=1920&q=80" 
           alt="Pemandangan Destinasi"
           className="absolute inset-0 w-full h-full object-cover opacity-50"
         />
-        <div className="relative z-10 text-center px-4">
+        <div className="relative z-10 text-center px-4 mt-8">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
             KelanaAI Travel Planner
           </h1>
-          <p className="text-lg md:text-xl text-slate-200 max-w-2xl mx-auto drop-shadow-md mb-6">
+          <p className="text-lg md:text-xl text-slate-200 max-w-2xl mx-auto drop-shadow-md mb-8">
             Rencanakan perjalanan impianmu dengan bantuan kecerdasan buatan.
           </p>
-          <a 
-            href="/trips" 
-            className="inline-block bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/50 text-white font-semibold px-6 py-2.5 rounded-full transition-all"
-          >
-            Lihat Daftar Perjalananku &rarr;
-          </a>
+          
+          {isLoggedIn ? (
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+              <Link href="/trips" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-full transition-all shadow-lg">
+                Riwayat Trip &rarr;
+              </Link>
+              <Link href="/profile" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/50 text-white font-semibold px-6 py-3 rounded-full transition-all">
+                Profil Saya
+              </Link>
+              <button onClick={handleLogout} className="bg-white/10 hover:bg-red-500/90 backdrop-blur-sm border border-white/30 text-white font-semibold px-6 py-3 rounded-full transition-all">
+                Logout
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+              <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-3 rounded-full transition-all shadow-lg">
+                Login
+              </Link>
+              <Link href="/register" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/50 text-white font-semibold px-10 py-3 rounded-full transition-all">
+                Daftar Akun
+              </Link>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* 2. RESPONSIVE MAIN CONTENT (Grid Layout) */}
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 -mt-10 md:-mt-16 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
-          {/* Kolom Kiri: Form Input */}
           <div className="lg:col-span-5 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100">
             <h2 className="text-2xl font-bold mb-6 text-slate-800">Detail Perjalanan</h2>
             
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Destinasi</label>
-                <input 
-                  type="text" 
-                  name="destination"
-                  required
-                  value={formData.destination}
-                  onChange={handleChange}
-                  placeholder="Contoh: Kota, Negara (Bandung, Indonesia)" 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none"
-                />
+                <input type="text" name="destination" required value={formData.destination} onChange={handleChange} placeholder="Contoh: Kota, Negara (Bandung, Indonesia)" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Durasi (Hari)</label>
-                  <input 
-                    type="number"
-                    name="days"
-                    min="1"
-                    required
-                    value={formData.days}
-                    onChange={handleChange} 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none"
-                  />
+                  <input type="number" name="days" min="1" required value={formData.days} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1">Bulan Perjalanan</label>
-                  <select 
-                    name="travel_month"
-                    value={formData.travel_month}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none cursor-pointer"
-                  >
+                  <select name="travel_month" value={formData.travel_month} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none cursor-pointer">
                     {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m) => (
                       <option key={m} value={m}>{m}</option>
                     ))}
@@ -192,15 +224,7 @@ export default function KelanaAIPlanner() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Total Budget</label>
-                <input 
-                  type="number"
-                  name="budget"
-                  min="0"
-                  required
-                  value={formData.budget}
-                  onChange={handleChange} 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none"
-                />
+                <input type="number" name="budget" min="0" required value={formData.budget} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" />
               </div>
 
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
@@ -221,15 +245,9 @@ export default function KelanaAIPlanner() {
                 </div>
               </div>
 
-              {/* Input Gaya Perjalanan */}
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">Gaya Perjalanan</label>
-                <select 
-                  name="travel_style"
-                  value={formData.travel_style}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-blue-600 focus:bg-white transition-all outline-none cursor-pointer"
-                >
+                <select name="travel_style" value={formData.travel_style} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none cursor-pointer">
                   <option value="Solo">Solo (Sendirian)</option>
                   <option value="Couple">Couple (Pasangan)</option>
                   <option value="Family">Family (Keluarga)</option>
@@ -239,17 +257,12 @@ export default function KelanaAIPlanner() {
 
               {error && <p className="text-red-500 text-sm font-medium">{error}</p>}
 
-              <button 
-                type="submit" 
-                disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md hover:shadow-lg mt-4 disabled:opacity-50"
-              >
+              <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md mt-4 disabled:opacity-50">
                 {loading ? 'AI Sedang Merencanakan...' : 'Buat Rencana Perjalanan'}
               </button>
             </form>
           </div>
 
-          {/* Kolom Kanan: Rekomendasi Panel */}
           <div className="lg:col-span-7 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col max-h-[850px] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-6 text-slate-800 pb-4 border-b border-slate-100">
               Rekomendasi KelanaAI
@@ -266,7 +279,6 @@ export default function KelanaAIPlanner() {
                   </span>
                 </div>
                 
-                {/* PEMANGGILAN FUNGSI KARTU DI SINI */}
                 <div className="mt-2">
                   {result.trip_data?.ai_recommendation ? (
                     renderItineraryCards(result.trip_data.ai_recommendation)
@@ -277,9 +289,6 @@ export default function KelanaAIPlanner() {
               </div>
             ) : (
               <div className="flex-grow flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200 min-h-[300px]">
-                <svg className="w-16 h-16 text-slate-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
                 <p className="text-slate-500 italic text-lg max-w-sm">
                   Silakan isi form di samping untuk melihat hasil rencana perjalananmu.
                 </p>

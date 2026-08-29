@@ -1,11 +1,11 @@
+'use client';
+
+import { useState, useEffect } from "react";
 import { getTrip } from "../../../services/tripService";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import remarkGfm from "remark-gfm";
-
-interface PageProps {
-  params: Promise<{ id: string }>;
-}
+import { useRouter, useParams } from "next/navigation"; 
 
 const renderItineraryCards = (markdownText: string) => {
   const splitRegex = /(?=(?:^|\n)(?:###|##|#|\*\*)?\s*(?:Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion))/i;
@@ -14,10 +14,8 @@ const renderItineraryCards = (markdownText: string) => {
   return sections.map((section, index) => {
     if (!section.trim()) return null;
 
-    // Mengecek apakah teks ini merupakan bagian dari "Day" atau section khusus lainnya
     const isMainSection = section.match(/(?:^|\n)(?:###|##|#|\*\*)?\s*(?:Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion)/i);
 
-    // Bagian Intro / Judul (Sebelum hari pertama atau bagian khusus) -> Tanpa kotak
     if (index === 0 && !isMainSection) {
       return (
         <div key={index} className="mb-6 px-2">
@@ -35,11 +33,10 @@ const renderItineraryCards = (markdownText: string) => {
       );
     }
 
-    // KARTU CONTAINER: Untuk setiap hari (Day 1, Day 2) ATAU bagian info lainnya (Tips, Food, Budget)
     return (
       <div key={index} className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm mb-5 hover:shadow-md transition-shadow">
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]} // <-- TAMBAHKAN BARIS INI
+          remarkPlugins={[remarkGfm]}
           components={{
             h1: ({node, ...props}) => <h1 className="text-xl font-bold mb-4 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
             h2: ({node, ...props}) => <h2 className="text-xl font-bold mb-4 text-blue-700 border-b border-blue-100 pb-2" {...props} />,
@@ -49,7 +46,6 @@ const renderItineraryCards = (markdownText: string) => {
             p: ({node, ...props}) => <p className="mb-3 text-slate-700 leading-relaxed" {...props} />,
             strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
             
-            // --- TAMBAHKAN STYLING TABEL DI BAWAH INI ---
             table: ({node, ...props}) => (
               <div className="overflow-x-auto my-6 rounded-lg border border-slate-200">
                 <table className="w-full text-left border-collapse text-sm" {...props} />
@@ -67,15 +63,56 @@ const renderItineraryCards = (markdownText: string) => {
   });
 };
 
-export default async function TripDetailPage({ params }: PageProps) {
-  const { id } = await params;
-  const trip = await getTrip(Number(id));
+export default function TripDetailPage() {
+  const router = useRouter();
+  const params = useParams(); // Mengambil ID dari URL dengan cara Client Component
+  
+  const [trip, setTrip] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!trip || trip.detail === "Trip not found") {
+  // PENJAGA HALAMAN & PEMANGGIL DATA
+  useEffect(() => {
+    // 1. Cek KTP (Token)
+    const token = localStorage.getItem('token');
+    if (!token) {
+      router.push('/login');
+      return; // Berhenti mengeksekusi kode di bawahnya jika tidak ada token
+    }
+
+    // 2. Jika aman, panggil data trip dari backend
+    const fetchTrip = async () => {
+      if (params?.id) {
+        try {
+          const data = await getTrip(Number(params.id));
+          setTrip(data);
+        } catch (error) {
+          console.error("Gagal mengambil detail trip", error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchTrip();
+  }, [router, params]);
+
+  // Tampilan saat data sedang diambil (Loading)
+  if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">Trip Tidak Ditemukan</h1>
-        <Link href="/trips" className="text-blue-600 hover:underline">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div>
+        <p className="text-slate-500">Memuat detail perjalanan...</p>
+      </div>
+    );
+  }
+
+  // Tampilan jika trip tidak ditemukan atau dilarang diakses (Forbidden 403)
+  if (!trip || trip.detail) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Akses Ditolak atau Tidak Ditemukan</h1>
+        <p className="text-slate-500 mb-6">{trip?.detail || "Data trip tidak tersedia."}</p>
+        <Link href="/trips" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition">
           &larr; Kembali ke daftar trip
         </Link>
       </div>

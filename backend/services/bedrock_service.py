@@ -44,7 +44,7 @@ def get_ai_recommendation(days: int, destination: str, budget: float, travel_sty
                 }
             ],
             inferenceConfig={
-                "maxTokens": 1500
+                "maxTokens": 4096
             }
         )
         

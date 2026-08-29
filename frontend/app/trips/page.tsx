@@ -4,8 +4,26 @@ import { useState, useEffect } from "react";
 import { getTrips } from "../../services/tripService";
 import { TripCard } from "../../components/TripCard";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; 
 
 export default function TripsPage() {
+  const router = useRouter();
+
+  // PENJAGA HALAMAN (Route Protection)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // Jika tidak ada token (belum login), langsung tendang ke halaman login
+      router.push('/login');
+    }
+  }, [router]);
+
+  // LOGOUT
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    router.push('/login');
+  };
+
   const [trips, setTrips] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -34,7 +52,7 @@ export default function TripsPage() {
     setCurrentPage(1);
   }, [searchQuery, sortOption]);
 
-  // 1. Jalankan Filter & Sort
+  // Jalankan Filter & Sort
   const filteredAndSortedTrips = trips
     .filter((trip) => 
       trip.destination.toLowerCase().includes(searchQuery.toLowerCase())
@@ -46,7 +64,7 @@ export default function TripsPage() {
       return 0;
     });
 
-  // 2. Jalankan Paginasi (Potong array berdasarkan halaman saat ini)
+  // Jalankan Paginasi (Potong array berdasarkan halaman saat ini)
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentTrips = filteredAndSortedTrips.slice(indexOfFirstItem, indexOfLastItem);
@@ -62,9 +80,19 @@ export default function TripsPage() {
             <h1 className="text-3xl font-extrabold text-slate-900">Riwayat Perjalanan</h1>
             <p className="text-slate-500 text-sm mt-1">Daftar trip tersimpan ({filteredAndSortedTrips.length} Trip)</p>
           </div>
-          <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm text-center">
-            + Buat Trip Baru
-          </Link>
+          
+          {/* GRUP TOMBOL DI KANAN */}
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/" className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm text-center">
+              + Buat Trip Baru
+            </Link>
+            <Link href="/profile" className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm text-center">
+              Profil
+            </Link>
+            <button onClick={handleLogout} className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-100 px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow-sm text-center">
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Search & Sort Controls */}

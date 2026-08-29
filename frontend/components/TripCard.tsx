@@ -58,10 +58,10 @@ const getCurrencyInfo = (dest: string) => {
 };
 
 export function TripCard({ trip }: { trip: TripProps }) {
-  // 1. Ambil info mata uang berdasarkan nama destinasi trip ini
+  // Ambil info mata uang berdasarkan nama destinasi trip ini
   const { locale, currency } = getCurrencyInfo(trip.destination);
 
-  // 2. Format budget menggunakan locale dan currency yang sudah dinamis
+  // Format budget menggunakan locale dan currency yang sudah dinamis
   const formattedBudget = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
