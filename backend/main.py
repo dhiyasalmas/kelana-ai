@@ -1,4 +1,5 @@
 import os
+import boto3
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,7 @@ from services.bedrock_service import get_ai_recommendation
 from services.auth_service import register_user
 from models.trip import Trip
 from database import SessionLocal, init_db
+from services.kb_service import retrieve_and_generate
 
 # Memuat variabel environment dari file .env
 load_dotenv()
@@ -71,6 +73,9 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class QuestionRequest(BaseModel):
+    question: str
 
 # 4. Inisialisasi Database
 init_db()
@@ -215,6 +220,66 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db), current_use
     db.refresh(trip)
 
     return {"message": "Success", "trip_data": trip}
+
+# Knowledge Base
+@app.post("/api/v1/ask")
+def ask(request: QuestionRequest, current_user: User = Depends(get_current_user)):
+    try:
+        # retrieve_and_generate sekarang menghasilkan dict: {"answer": "...", "sources": [...]}
+        result = retrieve_and_generate(request.question)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Kembalikan jawaban dan sumber dokumen ke frontend
+    return {
+        "question": request.question, 
+        "answer": result["answer"],
+        "sources": result["sources"]
+    }
+
+# Base Model
+@app.post("/api/v1/ask-base-model")
+def ask_base_model(request: QuestionRequest, current_user: User = Depends(get_current_user)):
+    """
+    Endpoint ini HANYA digunakan untuk testing dan perbandingan.
+    Ia TIDAK membaca Knowledge Base (dokumen). Ia hanya bertanya 
+    langsung ke otak dasar AI (Base Model).
+    """
+    
+    # Ambil region dari .env, default ke us-east-1
+    region = os.getenv("AWS_REGION", "us-east-1")
+    
+    # Gunakan model yang sama dengan KB Service agar perbandingannya adil
+    model_id = "amazon.nova-lite-v1:0"
+    
+    llm_client = boto3.client(
+        service_name="bedrock-runtime",
+        region_name=region
+    )
+    
+    # Prompt sederhana tanpa disisipi konteks dokumen
+    prompt = f"""
+    Anda adalah asisten AI. Jawablah pertanyaan berikut dengan sebaik-baiknya.
+    
+    Pertanyaan: "{request.question}"
+    """
+    
+    try:
+        response = llm_client.converse(
+            modelId=model_id,
+            messages=[{
+                "role": "user",
+                "content": [{"text": prompt}]
+            }]
+        )
+        answer = response['output']['message']['content'][0]['text']
+    except Exception as e:
+        answer = f"Error saat memanggil Base Model: {e}"
+        
+    return {
+        "question": request.question,
+        "answer": answer
+    }
 
 # PUT Update Budget
 @app.put("/api/v1/trips/{trip_id}")
