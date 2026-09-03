@@ -6,98 +6,108 @@ load_dotenv()
 
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 KNOWLEDGE_BASE_ID = os.getenv("KNOWLEDGE_BASE_ID")
-MODEL_ID = os.getenv("MODEL_ID")
-
-# Kita butuh model ID untuk merapikan teks (pastikan model ini memiliki akses di AWS-mu)
-#MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0" 
+MODEL_ID = os.getenv("MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
 
 def get_bedrock_agent_runtime_client():
-    return boto3.client(
-        service_name="bedrock-agent-runtime",
-        region_name=AWS_REGION,
-    )
+    return boto3.client(service_name="bedrock-agent-runtime", region_name=AWS_REGION)
 
 def get_bedrock_runtime_client():
-    return boto3.client(
-        service_name="bedrock-runtime",
-        region_name=AWS_REGION,
-    )
+    return boto3.client(service_name="bedrock-runtime", region_name=AWS_REGION)
 
-def retrieve_and_generate(query: str) -> dict:
+def retrieve_and_generate(query: str, chat_history: list = None) -> dict:
     if not KNOWLEDGE_BASE_ID:
         raise ValueError("KNOWLEDGE_BASE_ID is not set.")
 
-    # 1. RETRIEVE
+    # 1. RETRIEVE DARI KNOWLEDGE BASE
     agent_client = get_bedrock_agent_runtime_client()
     try:
         response = agent_client.retrieve(
             knowledgeBaseId=KNOWLEDGE_BASE_ID,
             retrievalQuery={"text": query},
-            retrievalConfiguration={
-                "managedSearchConfiguration": {
-                    "numberOfResults": 5,
-                },
-            },
+            retrievalConfiguration={"managedSearchConfiguration": {"numberOfResults": 5}}
         )
     except Exception as e:
         raise ValueError(f"Gagal menarik dokumen dari Knowledge Base: {e}")
 
     snippets = []
     sources = set()
-
     for result in response.get("retrievalResults", []):
         text = result.get("content", {}).get("text", "").strip()
-        if text:
-            snippets.append(text)
+        if text: snippets.append(text)
         
         location = result.get("location", {})
-        if location.get("type") == "S3":
-            s3_uri = location.get("s3Location", {}).get("uri", "")
-            if s3_uri:
-                file_name = s3_uri.split("/")[-1]
-                sources.add(file_name)
+        if location.get("type") == "S3" and location.get("s3Location", {}).get("uri"):
+            sources.add(location["s3Location"]["uri"].split("/")[-1])
 
     context_text = "\n\n".join(snippets)
 
-    if not context_text:
-        return {
-            "sources": []
-        }
+    # 2. SUSUN PROMPT DENGAN FORMAT XML KHUSUS CLAUDE (Sangat Kuat!)
+    prompt_text = f"""<user_query>
+{query}
+</user_query>
 
-    # 2. GENERATE
-    llm_client = get_bedrock_runtime_client()
-    
-    prompt = f"""
-Anda adalah asisten travel profesional. 
-TUGAS UTAMA: Jawab pertanyaan pengguna HANYA berdasarkan referensi di bawah ini.
-Jika jawabannya tidak ada di referensi, katakan "Maaf, informasi ini tidak ada di dokumen panduan Anda."
-Jangan pernah mengarang informasi tambahan.
+<search_results>
+{context_text if context_text else 'Tidak ada dokumen yang ditemukan.'}
+</search_results>
 
-<referensi>
-{context_text}
-</referensi>
+<system_instructions>
+Anda adalah KelanaAI, asisten travel cerdas. Anda sedang berada di tengah-tengah obrolan dengan pengguna.
 
-Pertanyaan pengguna: "{query}"
+PERINGATAN KRITIS: 
+Sistem mesin pencari kami sering melakukan kesalahan! Ia sering menarik <search_results> dari negara yang salah karena kesamaan kata kunci (misal: mencari kata "hari 1").
 
-INSTRUKSI FORMAT WAJIB (MARKDOWN):
-- Gunakan struktur Markdown yang rapi.
-- Wajib gunakan bullet points (-) atau penomoran (1. 2.).
-- Cetak tebal (**bold**) pada kata kunci penting.
-- Beri spasi paragraf antar poin agar mudah dibaca.
+TUGAS ANDA:
+1. BACA riwayat obrolan kita di atas. Identifikasi NEGARA atau KOTA apa yang sedang kita bahas (Misal: Jepang, Korea Utara, dll).
+2. EVALUASI isi <search_results>. JIKA isi dokumen tersebut membahas negara/kota yang BERBEDA dari riwayat obrolan (misalnya dokumen membahas Nur-Sultan/Kazakhstan padahal kita sedang bahas Korea Utara), MAKA ANGGAP DOKUMEN ITU SAMPAH! ABAIKAN 100%!
+3. Jawab <user_query> murni dengan melanjutkan rencana dari destinasi yang BENAR di riwayat obrolan. Jangan terbawa halusinasi mesin pencari!
+4. Gunakan format Markdown.
+</system_instructions>
 """
 
+    # 3. SIAPKAN RAW MESSAGES
+    raw_messages = []
+    if chat_history:
+        for msg in chat_history:
+            content_str = msg.content.strip() if msg.content else ""
+            if not content_str: continue 
+            
+            role = "assistant" if msg.role in ["assistant", "ai"] else "user"
+            raw_messages.append({"role": role, "content": content_str})
+
+    # Aturan Ketat Bedrock: Hindari bentrokan user -> user
+    if raw_messages and raw_messages[-1]["role"] == "user":
+        raw_messages[-1]["content"] += f"\n\n[Pesan Baru]:\n{prompt_text}"
+    else:
+        raw_messages.append({"role": "user", "content": prompt_text})
+
+    # 4. TERAPKAN LIST COMPREHENSION BEDROCK
+    bedrock_messages = [
+        {
+            "role": item["role"],
+            "content": [{"text": item["content"]}],
+        }
+        for item in raw_messages
+    ]
+
+    # 5. GENERATE
+    llm_client = get_bedrock_runtime_client()
     try:
         llm_response = llm_client.converse(
             modelId=MODEL_ID,
-            messages=[{
-                "role": "user",
-                "content": [{"text": prompt}]
-            }]
+            messages=bedrock_messages 
         )
         answer = llm_response['output']['message']['content'][0]['text']
     except Exception as e:
-        # KITA MENGUBAH BAGIAN INI: Lemparkan error ke UI agar tidak disembunyikan
-        raise ValueError(f"Proses Generate (merapikan teks) gagal. Error dari Bedrock: {e}")
+        raise ValueError(f"Proses Generate gagal. Error dari Bedrock: {e}")
+
+    # Logika tambahan: Jika AI memutuskan untuk mengabaikan dokumen (karena beda negara), 
+    # kita tidak perlu menampilkan nama dokumen Kazakhstan tersebut di layar UI.
+    if "Kazakhstan" in answer or "Astana" in answer or "Nur-Sultan" in answer:
+         pass # Biarkan saja jika memang obrolannya ttg Kazakhstan
+    else:
+         # Jika jawaban membahas Korea/Jepang tapi referensi ditarik dari Kazakhstan, kosongkan referensinya
+         if context_text and ("Kazakhstan" in context_text or "Nur-Sultan" in context_text):
+             sources = set()
 
     return {
         "answer": answer,

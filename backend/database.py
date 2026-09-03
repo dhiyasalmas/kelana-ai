@@ -18,10 +18,10 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False)
 # Base = all ORM models inherit from this
 Base = declarative_base()
 
-# create tables
 def init_db() -> None:
-  """Create all SQLAlchemy tables for the configured database."""
-  #Base.metadata.create_all(bind=engine)
-  import models.user  # noqa: F401
-  import models.trip  # noqa: F401
-  Base.metadata.create_all(bind=engine)
+    """Create all SQLAlchemy tables for the configured database."""
+    # import all models so their metadata is registered before create_all
+    import models.user  # noqa: F401
+    import models.trip  # noqa: F401
+    import models.conversation  # noqa: F401
+    Base.metadata.create_all(bind=engine)

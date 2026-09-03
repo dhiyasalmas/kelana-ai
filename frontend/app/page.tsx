@@ -6,6 +6,22 @@ import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+// Tipe data untuk daftar chat di sidebar
+type Conversation = {
+  id: number;
+  title: string;
+  created_at: string;
+};
+
+// Tipe data untuk pesan (Diperbarui: Menambahkan created_at)
+type Message = {
+  id?: number;
+  role: 'user' | 'assistant' | 'ai'; 
+  content: string;
+  sources?: string[];
+  created_at?: string; // Menangkap waktu dari database atau saat ini
+};
+
 export default function KelanaAIPlanner() {
   const router = useRouter();
   
@@ -28,32 +44,39 @@ export default function KelanaAIPlanner() {
     travel_style: 'Solo'
   });
 
-  // --- STATE KOLOM KANAN (TABS) ---
-  // Menambahkan 'base_model' sebagai opsi tab
+  // --- STATE TABS ---
   const [activeTab, setActiveTab] = useState<'result' | 'chat' | 'base_model'>('result');
 
   // ==========================================
-  // STATE CHAT 1: KNOWLEDGE BASE (RAG)
+  // STATE CHAT 1: KNOWLEDGE BASE (RAG) + MEMORY
   // ==========================================
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<number | null>(null);
+  
   const [query, setQuery] = useState('');
-  const [messages, setMessages] = useState<{role: 'user' | 'ai', content: string, sources?: string[]}[]>([
-    { role: 'ai', content: 'Halo! Aku **KelanaAI (RAG)**. Jawabanku dijamin akurat karena aku membaca langsung dari dokumen yang kamu unggah. Tanyakan saja padaku!', sources: [] }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isAskLoading, setIsAskLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ==========================================
-  // STATE CHAT 2: BASE MODEL (TANPA DOKUMEN)
+  // STATE CHAT 2: BASE MODEL (TANPA MEMORI)
   // ==========================================
   const [baseQuery, setBaseQuery] = useState('');
-  const [baseMessages, setBaseMessages] = useState<{role: 'user' | 'ai', content: string, sources?: string[]}[]>([
-    { role: 'ai', content: 'Halo! Aku **Base Model Murni**. Aku menjawab menggunakan pengetahuan umum bawaanku tanpa melihat dokumenmu. Mari kita bandingkan jawabanku!', sources: [] }
+  const [baseMessages, setBaseMessages] = useState<Message[]>([
+    { 
+      role: 'assistant', 
+      content: 'Halo! Aku **Base Model Murni**. Aku menjawab menggunakan pengetahuan umum bawaanku tanpa melihat dokumenmu. Mari kita bandingkan jawabanku!', 
+      sources: [],
+      created_at: new Date().toISOString()
+    }
   ]);
   const [isBaseLoading, setIsBaseLoading] = useState(false);
   const baseMessagesEndRef = useRef<HTMLDivElement>(null);
 
 
-  // PENJAGA PINTU
+  // ------------------------------------------
+  // USE EFFECTS
+  // ------------------------------------------
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -64,14 +87,31 @@ export default function KelanaAIPlanner() {
     }
   }, [router]);
 
-  // SCROLL OTOMATIS UNTUK CHAT RAG
+  useEffect(() => {
+    if (isLoggedIn && activeTab === 'chat') {
+      fetchConversations();
+    }
+  }, [isLoggedIn, activeTab]);
+
+  useEffect(() => {
+    if (activeConvId) {
+      fetchMessages(activeConvId);
+    } else {
+      setMessages([{ 
+        role: 'assistant', 
+        content: 'Silakan pilih riwayat obrolan di samping, atau klik **+ New Chat** untuk memulai percakapan baru.', 
+        sources: [],
+        created_at: new Date().toISOString()
+      }]);
+    }
+  }, [activeConvId]);
+
   useEffect(() => {
     if (activeTab === 'chat') {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, activeTab]);
 
-  // SCROLL OTOMATIS UNTUK CHAT BASE MODEL
   useEffect(() => {
     if (activeTab === 'base_model') {
       baseMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -84,7 +124,149 @@ export default function KelanaAIPlanner() {
     router.push('/login'); 
   };
 
-  // --- FUNGSI SUBMIT TRIP PLANNER ---
+  // ------------------------------------------
+  // HELPER FORMAT WAKTU
+  // ------------------------------------------
+  const formatTime = (isoString?: string) => {
+    if (!isoString) return new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // ------------------------------------------
+  // API CALLS: CHAT HISTORY (RAG)
+  // ------------------------------------------
+  const fetchConversations = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/conversations`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.status === 401) { handleLogout(); return; } 
+
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data);
+        if (data.length > 0 && !activeConvId) {
+          setActiveConvId(data[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat daftar obrolan:", err);
+    }
+  };
+
+  const createNewChat = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/conversations`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ title: "New Chat" })
+      });
+      if (res.status === 401) { handleLogout(); return; } 
+
+      if (res.ok) {
+        const newConv = await res.json();
+        setConversations(prev => [newConv, ...prev]);
+        setActiveConvId(newConv.id);
+        setMessages([{ 
+          role: 'assistant', 
+          content: 'Halo! Aku KelanaAI (RAG). Ruang obrolan baru telah dibuat. Apa yang ingin kamu tanyakan hari ini?', 
+          sources: [],
+          created_at: new Date().toISOString()
+        }]);
+      }
+    } catch (err) {
+      console.error("Gagal membuat obrolan baru:", err);
+    }
+  };
+
+  const fetchMessages = async (convId: number) => {
+    const token = localStorage.getItem('token');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/conversations/${convId}/messages`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.status === 401) { handleLogout(); return; } 
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.length === 0) {
+           setMessages([{ 
+             role: 'assistant', 
+             content: 'Obrolan ini masih kosong. Silakan mulai bertanya.', 
+             sources: [],
+             created_at: new Date().toISOString()
+           }]);
+        } else {
+           setMessages(data);
+        }
+      }
+    } catch (err) {
+      console.error("Gagal memuat pesan:", err);
+    }
+  };
+
+  const handleAskSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim() || !activeConvId) return;
+
+    const userMessage = query;
+    const currentTimestamp = new Date().toISOString();
+    
+    // Tampilkan pesan user beserta waktu saat ini
+    setMessages(prev => [...prev, { role: 'user', content: userMessage, created_at: currentTimestamp }]);
+    setQuery('');
+    setIsAskLoading(true);
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/conversations/${activeConvId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content: userMessage })
+      });
+
+      if (response.status === 401) { handleLogout(); return; }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Gagal menghubungi AI Server');
+      }
+
+      const data = await response.json();
+      // Tampilkan balasan AI beserta waktu
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.answer, 
+        sources: data.sources,
+        created_at: new Date().toISOString()
+      }]);
+      
+      if (conversations.find(c => c.id === activeConvId)?.title === "New Chat") {
+         fetchConversations();
+      }
+
+    } catch (error: any) {
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `*Maaf, terjadi kesalahan: ${error.message}*`,
+        created_at: new Date().toISOString()
+      }]);
+    } finally {
+      setIsAskLoading(false);
+    }
+  };
+
+  // ------------------------------------------
+  // FUNGSI SUBMIT TRIP & BASE MODEL
+  // ------------------------------------------
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -118,7 +300,6 @@ export default function KelanaAIPlanner() {
       });
 
       if (!response.ok) throw new Error('Gagal mendapatkan rekomendasi dari server');
-
       const data = await response.json();
       setResult(data);
     } catch (err: any) {
@@ -128,55 +309,19 @@ export default function KelanaAIPlanner() {
     }
   };
 
-  // --- FUNGSI SUBMIT CHAT 1: ASK AI (RAG) ---
-  const handleAskSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
-    const userMessage = query;
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
-    setQuery('');
-    setIsAskLoading(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ question: userMessage })
-      });
-
-      if (response.status === 401) {
-        handleLogout();
-        return;
-      }
-      if (!response.ok) throw new Error('Gagal menghubungi AI Server');
-
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: 'ai', content: data.answer, sources: data.sources }]);
-    } catch (error: any) {
-      setMessages(prev => [...prev, { role: 'ai', content: `*Maaf, terjadi kesalahan: ${error.message}*` }]);
-    } finally {
-      setIsAskLoading(false);
-    }
-  };
-
-  // --- FUNGSI SUBMIT CHAT 2: BASE MODEL ---
   const handleBaseSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!baseQuery.trim()) return;
 
     const userMessage = baseQuery;
-    setBaseMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    const currentTimestamp = new Date().toISOString();
+    
+    setBaseMessages(prev => [...prev, { role: 'user', content: userMessage, created_at: currentTimestamp }]);
     setBaseQuery('');
     setIsBaseLoading(true);
 
     try {
       const token = localStorage.getItem('token');
-      // Memanggil endpoint khusus base model yang baru saja kita buat di main.py
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ask-base-model`, {
         method: 'POST',
         headers: {
@@ -186,16 +331,25 @@ export default function KelanaAIPlanner() {
         body: JSON.stringify({ question: userMessage })
       });
 
-      if (response.status === 401) {
-        handleLogout();
-        return;
+      if (response.status === 401) { handleLogout(); return; }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Gagal menghubungi Base Model Server');
       }
-      if (!response.ok) throw new Error('Gagal menghubungi Base Model Server');
 
       const data = await response.json();
-      setBaseMessages(prev => [...prev, { role: 'ai', content: data.answer, sources: data.sources }]);
+      setBaseMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.answer, 
+        sources: data.sources,
+        created_at: new Date().toISOString()
+      }]);
     } catch (error: any) {
-      setBaseMessages(prev => [...prev, { role: 'ai', content: `*Maaf, terjadi kesalahan: ${error.message}*` }]);
+      setBaseMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `*Maaf, terjadi kesalahan: ${error.message}*`,
+        created_at: new Date().toISOString()
+      }]);
     } finally {
       setIsBaseLoading(false);
     }
@@ -208,7 +362,6 @@ export default function KelanaAIPlanner() {
 
     return sections.map((section, index) => {
       if (!section.trim()) return null;
-
       const isMainSection = section.match(/(?:^|\n)(?:###|##|#|\*\*)?\s*(?:Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion)/i);
 
       if (index === 0 && !isMainSection) {
@@ -372,9 +525,8 @@ export default function KelanaAIPlanner() {
           {/* KOLOM KANAN: TAB REKOMENDASI, CHAT RAG, & CHAT BASE MODEL */}
           <div className="lg:col-span-7 flex flex-col gap-8">
             
-            {/* 1. KOTAK HASIL TRIP */}
-            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col max-h-[600px] overflow-y-auto">
-              {/* Bagian Tab di Dalam Kotak Hasil */}
+            <div className="bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 flex flex-col max-h-[800px] overflow-hidden">
+              {/* Bagian Header Tab */}
               <div className="flex flex-wrap gap-4 border-b border-slate-100 pb-4 mb-4">
                 <button 
                   onClick={() => setActiveTab('result')}
@@ -396,7 +548,9 @@ export default function KelanaAIPlanner() {
                 </button>
               </div>
 
+              {/* ---------------------------------------------------- */}
               {/* KONTEN TAB: HASIL TRIP */}
+              {/* ---------------------------------------------------- */}
               {activeTab === 'result' && (
                 <div className="overflow-y-auto flex-grow pr-2">
                   {result ? (
@@ -417,98 +571,141 @@ export default function KelanaAIPlanner() {
                 </div>
               )}
 
-              {/* KONTEN TAB: CHAT Q&A (RAG) - WARNA EMERALD */}
+              {/* ---------------------------------------------------- */}
+              {/* KONTEN TAB: CHAT Q&A (RAG) DENGAN SIDEBAR MEMORI */}
+              {/* ---------------------------------------------------- */}
               {activeTab === 'chat' && (
-                <div className="flex flex-col h-full flex-grow overflow-hidden min-h-[400px]">
-                  <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-4 bg-slate-50/50 rounded-xl border border-slate-100">
-                    {messages.map((msg, index) => (
-                      <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[95%] p-4 rounded-2xl shadow-sm flex flex-col ${
-                          msg.role === 'user' 
-                            ? 'bg-emerald-600 text-white rounded-tr-none' 
-                            : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
-                        }`}>
-                          {msg.role === 'ai' ? (
-                            <div className="flex flex-col gap-2">
-                              <div className="text-sm">
-                                <ReactMarkdown 
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 text-emerald-800" {...props} />,
-                                    h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 text-emerald-800" {...props} />,
-                                    h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-2 text-emerald-800" {...props} />,
-                                    ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 mb-3" {...props} />,
-                                    ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-1 mb-3" {...props} />,
-                                    li: ({node, ...props}) => <li className="text-slate-700 marker:text-emerald-500" {...props} />,
-                                    p: ({node, ...props}) => <p className="mb-3 text-slate-700 leading-relaxed last:mb-0" {...props} />,
-                                    strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
-                                  }}
-                                >
-                                  {msg.content}
-                                </ReactMarkdown>
-                              </div>
-                              {msg.sources && msg.sources.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-slate-100">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">📖 Sumber Referensi:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {msg.sources.map((src, idx) => (
-                                      <span key={idx} className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] px-2 py-1 rounded-md">{src}</span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {isAskLoading && (
-                      <div className="flex justify-start">
-                        <div className="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm flex gap-2 items-center">
-                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-                          <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-                  <div className="pt-4 mt-auto">
-                    <form onSubmit={handleAskSubmit} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Tanya menggunakan dokumen (RAG)..."
-                        className="flex-grow px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-600 outline-none text-sm transition"
-                        disabled={isAskLoading}
-                      />
-                      <button
-                        type="submit"
-                        disabled={isAskLoading || !query.trim()}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 rounded-xl font-bold transition disabled:opacity-50 text-sm"
-                      >
-                        Kirim
+                <div className="flex h-full flex-grow overflow-hidden min-h-[500px] border border-slate-200 rounded-xl">
+                  
+                  {/* SIDEBAR DAFTAR CHAT (KIRI) */}
+                  <div className="w-1/3 md:w-1/4 bg-slate-50 border-r border-slate-200 flex flex-col">
+                    <div className="p-3 border-b border-slate-200 bg-white">
+                      <button onClick={createNewChat} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-2 rounded-lg text-sm transition shadow-sm">
+                        + New Chat
                       </button>
-                    </form>
+                    </div>
+                    <div className="flex-grow overflow-y-auto">
+                      {conversations.map(c => (
+                        <div 
+                          key={c.id} 
+                          onClick={() => setActiveConvId(c.id)} 
+                          className={`p-3 cursor-pointer border-b border-slate-100 transition-colors ${activeConvId === c.id ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'hover:bg-slate-100'}`}
+                        >
+                          <p className={`text-sm font-bold truncate ${activeConvId === c.id ? 'text-emerald-800' : 'text-slate-700'}`}>
+                            {c.title}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {new Date(c.created_at).toLocaleDateString('id-ID')}
+                          </p>
+                        </div>
+                      ))}
+                      {conversations.length === 0 && (
+                        <p className="text-xs text-slate-400 text-center p-4 italic">Belum ada obrolan.</p>
+                      )}
+                    </div>
                   </div>
+
+                  {/* AREA PESAN CHAT (KANAN) */}
+                  <div className="w-2/3 md:w-3/4 flex flex-col bg-white">
+                    <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-4">
+                      {messages.map((msg, index) => (
+                        <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                          <div className={`max-w-[95%] p-3 md:p-4 rounded-xl shadow-sm flex flex-col ${
+                            msg.role === 'user' 
+                              ? 'bg-emerald-600 text-white rounded-tr-none' 
+                              : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
+                          }`}>
+                            {msg.role === 'assistant' || msg.role === 'ai' ? (
+                              <div className="flex flex-col gap-2">
+                                <div className="text-sm">
+                                  <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    components={{
+                                      h1: ({node, ...props}) => <h1 className="text-lg font-bold mb-2 text-emerald-800" {...props} />,
+                                      h2: ({node, ...props}) => <h2 className="text-base font-bold mb-2 text-emerald-800" {...props} />,
+                                      h3: ({node, ...props}) => <h3 className="text-sm font-bold mb-2 text-emerald-800" {...props} />,
+                                      ul: ({node, ...props}) => <ul className="list-disc pl-5 space-y-1 mb-3" {...props} />,
+                                      ol: ({node, ...props}) => <ol className="list-decimal pl-5 space-y-1 mb-3" {...props} />,
+                                      li: ({node, ...props}) => <li className="text-slate-700 marker:text-emerald-500" {...props} />,
+                                      p: ({node, ...props}) => <p className="mb-3 text-slate-700 leading-relaxed last:mb-0" {...props} />,
+                                      strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+                                    }}
+                                  >
+                                    {msg.content}
+                                  </ReactMarkdown>
+                                </div>
+                                {msg.sources && msg.sources.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-slate-100">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">📖 Sumber Referensi:</p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {msg.sources.map((src, idx) => (
+                                        <span key={idx} className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] px-2 py-1 rounded-md">{src}</span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                            )}
+                            
+                            {/* PENANDA WAKTU (TIMESTAMP) */}
+                            <div className={`text-[10px] text-right mt-2 font-medium ${msg.role === 'user' ? 'text-emerald-200' : 'text-slate-400'}`}>
+                              {formatTime(msg.created_at)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {isAskLoading && (
+                        <div className="flex justify-start">
+                          <div className="bg-white border border-slate-200 p-4 rounded-xl rounded-tl-none shadow-sm flex gap-2 items-center">
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    <div className="p-3 border-t border-slate-100 bg-slate-50">
+                      <form onSubmit={handleAskSubmit} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder={activeConvId ? "Ketik pesan..." : "Buat / pilih chat dulu..."}
+                          className="flex-grow px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none text-sm transition"
+                          disabled={isAskLoading || !activeConvId}
+                        />
+                        <button
+                          type="submit"
+                          disabled={isAskLoading || !query.trim() || !activeConvId}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 text-sm"
+                        >
+                          Kirim
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
-              {/* KONTEN TAB: CHAT BASE MODEL - WARNA VIOLET */}
+              {/* ---------------------------------------------------- */}
+              {/* KONTEN TAB: CHAT BASE MODEL (TANPA MEMORI) */}
+              {/* ---------------------------------------------------- */}
               {activeTab === 'base_model' && (
-                <div className="flex flex-col h-full flex-grow overflow-hidden min-h-[400px]">
+                <div className="flex flex-col h-full flex-grow overflow-hidden min-h-[500px]">
                   <div className="flex-grow overflow-y-auto p-4 flex flex-col gap-4 bg-slate-50/50 rounded-xl border border-slate-100">
                     {baseMessages.map((msg, index) => (
-                      <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div key={index} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         <div className={`max-w-[95%] p-4 rounded-2xl shadow-sm flex flex-col ${
                           msg.role === 'user' 
                             ? 'bg-violet-600 text-white rounded-tr-none' 
                             : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'
                         }`}>
-                          {msg.role === 'ai' ? (
+                          {msg.role === 'assistant' || msg.role === 'ai' ? (
                             <div className="flex flex-col gap-2">
                               <div className="text-sm">
                                 <ReactMarkdown 
@@ -527,20 +724,15 @@ export default function KelanaAIPlanner() {
                                   {msg.content}
                                 </ReactMarkdown>
                               </div>
-                              {msg.sources && msg.sources.length > 0 && (
-                                <div className="mt-2 pt-2 border-t border-slate-100">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">📖 Sumber Referensi:</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {msg.sources.map((src, idx) => (
-                                      <span key={idx} className="bg-violet-50 text-violet-700 border border-violet-100 text-[11px] px-2 py-1 rounded-md">{src}</span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           ) : (
                             <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
                           )}
+
+                          {/* PENANDA WAKTU (TIMESTAMP) */}
+                          <div className={`text-[10px] text-right mt-2 font-medium ${msg.role === 'user' ? 'text-violet-200' : 'text-slate-400'}`}>
+                            {formatTime(msg.created_at)}
+                          </div>
                         </div>
                       </div>
                     ))}

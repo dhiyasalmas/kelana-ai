@@ -20,6 +20,7 @@ from services.bedrock_service import get_ai_recommendation
 from services.auth_service import register_user
 from models.trip import Trip
 from database import SessionLocal, init_db
+from models.conversation import Conversation, Message
 from services.kb_service import retrieve_and_generate
 
 # Memuat variabel environment dari file .env
@@ -76,6 +77,12 @@ class LoginRequest(BaseModel):
 
 class QuestionRequest(BaseModel):
     question: str
+
+class MessageCreate(BaseModel):
+    content: str
+
+class ConversationCreate(BaseModel):
+    title: str = "New Chat"
 
 # 4. Inisialisasi Database
 init_db()
@@ -361,6 +368,80 @@ def update_trip(trip_id: int, request: TripUpdateBudget, db: Session = Depends(g
     db.commit()
     db.refresh(trip)
     return trip
+
+# --- ENDPOINTS CONVERSATION ---
+
+# 1. Mengambil semua daftar obrolan di sidebar kiri
+@app.get("/api/v1/conversations")
+def get_conversations(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    conversations = db.query(Conversation).filter(Conversation.user_id == current_user.id).order_by(Conversation.created_at.desc()).all()
+    return conversations
+
+# 2. Membuat obrolan baru (Tombol "New Chat")
+@app.post("/api/v1/conversations")
+def create_conversation(request: ConversationCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    new_conv = Conversation(user_id=current_user.id, title=request.title)
+    db.add(new_conv)
+    db.commit()
+    db.refresh(new_conv)
+    return new_conv
+
+# 3. Mengirim pesan ke obrolan tertentu (Membaca memori + Menyimpan ke DB)
+@app.post("/api/v1/conversations/{conv_id}/messages")
+def send_message(conv_id: int, request: MessageCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # 1. Pastikan obrolan ini milik user yang sedang login
+    conv = db.query(Conversation).filter(Conversation.id == conv_id, Conversation.user_id == current_user.id).first()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # 2. Simpan pesan User ke Database terlebih dahulu
+    user_msg = Message(conversation_id=conv_id, role="user", content=request.content)
+    db.add(user_msg)
+    db.commit()
+
+    # 3. AMBIL MEMORI DARI DATABASE
+    # Tarik semua pesan dalam obrolan ini dari awal sampai akhir secara berurutan
+    history = db.query(Message).filter(Message.conversation_id == conv_id).order_by(Message.created_at.asc()).all()
+    
+    # PENTING: Kita memisahkan pesan historis dengan pesan terbaru
+    # Ambil semua pesan kecuali pesan terakhir (yang baru saja disave di langkah 2)
+    chat_history = history[:-1] if len(history) > 1 else []
+
+    # 4. PANGGIL AI (RAG) DAN BERIKAN MEMORINYA
+    try:
+        # Perhatikan parameter chat_history=chat_history diselipkan di sini!
+        result = retrieve_and_generate(request.content, chat_history=chat_history)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # 5. Simpan jawaban AI ke Database
+    ai_msg = Message(
+        conversation_id=conv_id, 
+        role="assistant", 
+        content=result["answer"],
+        sources=result["sources"]
+    )
+    db.add(ai_msg)
+    
+    # 6. Update judul chat otomatis (hanya jika ini pesan pertama)
+    if len(history) == 1 and conv.title == "New Chat":
+        # Ambil maksimal 30 huruf pertama untuk judul di sidebar
+        conv.title = request.content[:30] + "..." 
+    
+    db.commit()
+
+    # Kembalikan jawaban ke frontend
+    return {
+        "question": request.content,
+        "answer": result["answer"],
+        "sources": result["sources"]
+    }
+
+# 4. Mengambil riwayat pesan untuk ditampilkan di layar tengah
+@app.get("/api/v1/conversations/{conv_id}/messages")
+def get_messages(conv_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    messages = db.query(Message).filter(Message.conversation_id == conv_id).order_by(Message.created_at.asc()).all()
+    return messages
 
 @app.delete("/api/v1/trips/{trip_id}")
 def delete_trip(trip_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
