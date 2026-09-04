@@ -1,7 +1,7 @@
-const API_URL = "http://127.0.0.1:8000/api/v1/auth";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export async function registerUser(data: any) {
-  const res = await fetch(`${API_URL}/register`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -15,7 +15,7 @@ export async function registerUser(data: any) {
 }
 
 export async function loginUser(data: any) {
-  const res = await fetch(`${API_URL}/login`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -30,8 +30,7 @@ export async function loginUser(data: any) {
 
 export async function getUserProfile() {
   const token = localStorage.getItem("token");
-  
-  const res = await fetch(`${API_URL}/me`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/me`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -39,7 +38,6 @@ export async function getUserProfile() {
     },
   });
 
-  // Auto-logout jika token tidak valid
   if (res.status === 401) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");

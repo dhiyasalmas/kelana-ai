@@ -443,6 +443,9 @@ export default function KelanaAIPlanner() {
               <Link href="/trips" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-full transition-all shadow-lg">
                 Lihat Daftar Perjalananku &rarr;
               </Link>
+              <Link href="/about" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-6 py-3 rounded-full transition-all">
+                Tentang AI Kami
+              </Link>
               <Link href="/profile" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white font-semibold px-8 py-3 rounded-full transition-all">
                 Profil
               </Link>

@@ -13,16 +13,15 @@ const getAuthHeaders = () => {
 };
 
 export async function getTrips() {
-  const res = await fetch(`${API_URL}/trips`, {
+  const res = await fetch(`${API_URL}/api/v1/trips`, {
     cache: "no-store",
     headers: getAuthHeaders()
   });
   
-  // FITUR BARU: Auto-Logout jika Token tidak valid / kedaluwarsa (Status 401)
   if (res.status === 401) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
-      window.location.href = "/login"; // Tendang ke halaman login
+      window.location.href = "/login";
     }
     return [];
   }
@@ -36,12 +35,12 @@ export async function getTrips() {
 }
 
 export async function getTrip(id: number) {
-  const res = await fetch(`${API_URL}/trips/${id}`, {
+  // UBAH DISINI: Tambahkan /api/v1 di depan /trips/${id}
+  const res = await fetch(`${API_URL}/api/v1/trips/${id}`, {
     cache: "no-store",
     headers: getAuthHeaders()
   });
   
-  // FITUR BARU: Auto-Logout jika Token tidak valid / kedaluwarsa (Status 401)
   if (res.status === 401) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
