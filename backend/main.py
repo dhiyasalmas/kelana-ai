@@ -29,14 +29,17 @@ load_dotenv()
 # 1. Inisialisasi Aplikasi terlebih dahulu
 app = FastAPI()
 
-# Mengambil nilai FRONTEND_URL dari .env (gunakan default localhost:3000 jika tidak ada)
-frontend_url = os.getenv("FRONTEND_URL")
-frontend_url2 = os.getenv("FRONTEND_URL2")
+# Mengambil nilai FRONTEND_URL dari .env
+frontend_url = os.getenv("FRONTEND_URL", "")
+frontend_url2 = os.getenv("FRONTEND_URL2", "")
+
+# Bangun list origins, filter yang kosong/None
+allowed_origins = [url for url in [frontend_url, frontend_url2] if url]
 
 # 2. Tambahkan Middleware CORS agar Next.js bisa mengambil data
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[frontend_url, frontend_url2],    # Mengizinkan request dari semua URL (localhost maupun IP jaringan)
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],    # Mengizinkan semua method (GET, POST, PUT, DELETE)
     allow_headers=["*"],    # Mengizinkan semua header
