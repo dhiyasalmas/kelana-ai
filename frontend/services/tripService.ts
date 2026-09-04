@@ -13,7 +13,7 @@ const getAuthHeaders = () => {
 };
 
 export async function getTrips() {
-  const res = await fetch(`${API_URL}/api/v1/trips`, {
+  const res = await fetch(`${API_URL}/trips`, {
     cache: "no-store",
     headers: getAuthHeaders()
   });
@@ -36,7 +36,7 @@ export async function getTrips() {
 
 export async function getTrip(id: number) {
   // UBAH DISINI: Tambahkan /api/v1 di depan /trips/${id}
-  const res = await fetch(`${API_URL}/api/v1/trips/${id}`, {
+  const res = await fetch(`${API_URL}/trips/${id}`, {
     cache: "no-store",
     headers: getAuthHeaders()
   });
