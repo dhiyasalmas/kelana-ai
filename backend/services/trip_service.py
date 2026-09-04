@@ -1,7 +1,9 @@
-def calculate_budget(days, budget, hotel_cost, transportation_cost, food_cost):
-    budget_perday = budget/days
-    total_estimated_cost = ((hotel_cost + transportation_cost + food_cost))
-    rest_budget = budget - (total_estimated_cost*days)
+def calculate_budget(days: int, budget: float, hotel_cost: float, transportation_cost: float, food_cost: float):
+    if days <= 0:
+        raise ValueError("Jumlah hari harus lebih dari 0")
+    budget_perday = budget / days
+    total_estimated_cost = hotel_cost + transportation_cost + food_cost
+    rest_budget = budget - (total_estimated_cost * days)
     return budget_perday, total_estimated_cost, rest_budget
 
 def get_trip_category(daily_budget: float, currency: str = "IDR"):
@@ -23,21 +25,17 @@ def get_trip_category(daily_budget: float, currency: str = "IDR"):
     else:
         return "Luxury", "Private Transfer/Flight"
 
-def recomendation_destination(country):
+def recomendation_destination(country: str) -> list:
     japan = ["tokyo", "shibuya", "akihabara", "kyoto", "osaka"]
-    amerika = ["new york", "los angles", "chicago", "michigan", "oregon"]
+    amerika = ["new york", "los angeles", "chicago", "michigan", "oregon"]
     indonesia = ["bandung", "jakarta", "semarang", "malang", "yogyakarta"]
     country = country.lower()
-    print("Recommended Places")
     if country == "japan":
-        for place in japan:
-            print(f"- {place}")
+        return japan
     elif country == "amerika":
-        for place in amerika:
-            print(f"- {place}")
+        return amerika
     else:
-        for place in indonesia:
-            print(f"- {place}")
+        return indonesia
 
 def get_travel_season(travel_month):
     if travel_month == "December":

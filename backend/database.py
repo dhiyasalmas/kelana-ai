@@ -10,7 +10,15 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 # engine = the connection pool
-engine = create_engine(DATABASE_URL)
+# pool_pre_ping=True: verifikasi koneksi sebelum dipakai (penting untuk NeonDB serverless)
+# pool_size & max_overflow: batasi koneksi agar tidak exhausted di serverless environment
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_size=5,
+    max_overflow=2,
+    pool_recycle=300,  # recycle koneksi setiap 5 menit
+)
 
 # SessionLocal = a factory for DB sessions
 SessionLocal = sessionmaker(bind=engine, autoflush=False)

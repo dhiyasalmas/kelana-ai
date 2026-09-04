@@ -7,6 +7,7 @@ load_dotenv()
 
 def get_bedrock_client():
     # Mengonfigurasi dan mengembalikan client AWS Bedrock.
+    # Default ke ap-southeast-2 agar konsisten dengan kb_service
     client = boto3.client(
         service_name='bedrock-runtime',
         region_name=os.getenv("AWS_REGION", "ap-southeast-2")

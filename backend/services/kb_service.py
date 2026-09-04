@@ -4,9 +4,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-2")
 KNOWLEDGE_BASE_ID = os.getenv("KNOWLEDGE_BASE_ID")
-MODEL_ID = os.getenv("MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0")
+MODEL_ID = os.getenv("MODEL_ID", "amazon.nova-lite-v1:0")
 
 def get_bedrock_agent_runtime_client():
     return boto3.client(service_name="bedrock-agent-runtime", region_name=AWS_REGION)

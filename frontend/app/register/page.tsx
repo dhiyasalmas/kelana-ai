@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -19,13 +20,14 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     try {
       await registerUser(formData);
-      alert("Registrasi berhasil! Silakan login.");
-      router.push('/login'); // Arahkan ke halaman login
-    } catch (err: any) {
-      setError(err.message);
+      setSuccess('Registrasi berhasil! Mengarahkan ke halaman login...');
+      setTimeout(() => router.push('/login'), 1500);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
     } finally {
       setLoading(false);
     }
@@ -38,6 +40,7 @@ export default function RegisterPage() {
         <p className="text-center text-slate-500 mb-8">Mulai rencanakan perjalanan impianmu</p>
         
         {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
+        {success && <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm mb-4">{success}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           

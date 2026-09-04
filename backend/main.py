@@ -16,7 +16,7 @@ from services.trip_service import (
     get_travel_season
 )
 from services.auth_service import login_user_service
-from services.bedrock_service import get_ai_recommendation, get_chat_response
+from services.bedrock_service import get_ai_recommendation
 from services.auth_service import register_user
 from models.trip import Trip
 from database import SessionLocal, init_db
@@ -52,6 +52,13 @@ class TripRequest(BaseModel):
     food_cost: float
     travel_month: str 
     travel_style: str
+
+    @field_validator("days")
+    @classmethod
+    def days_must_be_positive(cls, v: int) -> int:
+        if v <= 0:
+            raise ValueError("Jumlah hari harus lebih dari 0")
+        return v
 
 class TripUpdateBudget(BaseModel):
     budget: float
@@ -253,8 +260,8 @@ def ask_base_model(request: QuestionRequest, current_user: User = Depends(get_cu
     langsung ke otak dasar AI (Base Model).
     """
     
-    # Ambil region dari .env, default ke us-east-1
-    region = os.getenv("AWS_REGION", "us-east-1")
+    # Ambil region dari .env, default ke ap-southeast-2 (konsisten dengan bedrock_service)
+    region = os.getenv("AWS_REGION", "ap-southeast-2")
     
     # Gunakan model yang sama dengan KB Service agar perbandingannya adil
     model_id = "amazon.nova-lite-v1:0"
@@ -286,43 +293,6 @@ def ask_base_model(request: QuestionRequest, current_user: User = Depends(get_cu
     return {
         "question": request.question,
         "answer": answer
-    }
-
-# PUT Update Budget
-@app.put("/api/v1/trips/{trip_id}")
-def update_trip_budget(trip_id: int, request: TripUpdateBudget, db: Session = Depends(get_db)):
-    trip = db.query(Trip).filter(Trip.id == trip_id).first()
-    
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
-
-    trip.budget = request.budget
-    
-    # Hitung ulang budget
-    budget_perday, _, _ = calculate_budget(
-        days=trip.days, 
-        budget=request.budget, 
-        hotel_cost=request.hotel_cost, 
-        transportation_cost=request.transportation_cost, 
-        food_cost=request.food_cost
-    )
-    
-    # Hitung ulang kategori
-    category, vehicle = get_trip_category(request.budget)
-    trip.daily_budget = budget_perday
-    trip.category = category
-    
-    db.commit()
-    db.refresh(trip)
-    
-    return {
-        "message": "Trip budget berhasil diperbarui!",
-        "trip_data": {
-            "destination": trip.destination,
-            "category": trip.category,
-            "season": trip.season,
-            "ai_recommendation": trip.ai_recommendation
-        }
     }
 
 @app.get("/api/v1/auth/me")

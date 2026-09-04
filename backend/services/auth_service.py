@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 # Memuat variabel environment dari file .env
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+SECRET_KEY = os.getenv("SECRET_KEY", "changeme-set-a-strong-secret-in-env")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
 def hash_password(plain_password: str) -> str:
     """Hash a plain-text password using bcrypt. Returns the hash as a UTF-8 string."""
