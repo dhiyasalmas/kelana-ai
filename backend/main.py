@@ -16,7 +16,7 @@ from services.trip_service import (
     get_travel_season
 )
 from services.auth_service import login_user_service
-from services.bedrock_service import get_ai_recommendation, get_chat_response
+from services.bedrock_service import get_ai_recommendation
 from services.auth_service import register_user
 from models.trip import Trip
 from database import SessionLocal, init_db
