@@ -25,10 +25,10 @@ export default function RegisterPage() {
 
     try {
       await registerUser(formData);
-      setSuccess('Registrasi berhasil! Mengarahkan ke halaman login...');
+      setSuccess('Registration successful! Redirecting to login page...');
       setTimeout(() => router.push('/login'), 1500);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -37,15 +37,15 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
       <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-lg border border-slate-100">
-        <h2 className="text-3xl font-extrabold text-slate-900 text-center mb-2">Buat Akun</h2>
-        <p className="text-center text-slate-500 text-sm mb-8">Mulai rencanakan perjalanan impianmu</p>
+        <h2 className="text-3xl font-extrabold text-slate-900 text-center mb-2">Create Account</h2>
+        <p className="text-center text-slate-500 text-sm mb-8">Start planning your dream trip</p>
 
         {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm mb-4">{error}</div>}
         {success && <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm mb-4">{success}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Nama Lengkap</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1">Full Name</label>
             <input
               type="text"
               name="name"
@@ -86,7 +86,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
-                aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,14 +107,14 @@ export default function RegisterPage() {
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md mt-4 disabled:opacity-50 text-sm"
           >
-            {loading ? 'Memproses...' : 'Daftar Sekarang'}
+            {loading ? 'Processing...' : 'Register Now'}
           </button>
         </form>
 
         <p className="text-center text-sm text-slate-600 mt-6">
-          Sudah punya akun?{' '}
+          Already have an account?{' '}
           <Link href="/login" className="text-blue-600 font-bold hover:underline">
-            Login di sini
+            Login here
           </Link>
         </p>
       </div>
