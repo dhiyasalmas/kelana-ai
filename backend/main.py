@@ -54,6 +54,7 @@ class TripRequest(BaseModel):
     transportation_cost: float
     food_cost: float
     travel_month: str 
+    travel_year: int
     travel_style: str
 
     @field_validator("days")
@@ -61,6 +62,13 @@ class TripRequest(BaseModel):
     def days_must_be_positive(cls, v: int) -> int:
         if v <= 0:
             raise ValueError("Jumlah hari harus lebih dari 0")
+        return v
+
+    @field_validator("budget")
+    @classmethod
+    def budget_max_limit(cls, v: float) -> float:
+        if v > 1_000_000_000:
+            raise ValueError("Budget maksimal adalah 1 miliar")
         return v
 
 class TripUpdateBudget(BaseModel):
@@ -209,7 +217,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db), current_use
         destination=request.destination,
         budget=budget_perday,
         travel_style=f"{request.travel_style} Travel, {category} Budget",
-
+        travel_year=request.travel_year,
     )
 
     # Simpan ke Database
@@ -221,6 +229,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db), current_use
         transportation_cost=request.transportation_cost,
         food_cost=request.food_cost,
         travel_month=request.travel_month,
+        travel_year=request.travel_year,
         travel_style=request.travel_style,
         category=category,
         daily_budget=budget_perday,

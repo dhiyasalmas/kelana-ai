@@ -69,7 +69,7 @@ export default function AboutPage() {
 
       {/* Footer */}
       <footer className="text-center py-8 text-slate-400 text-sm">
-        <p>&copy; {new Date().getFullYear()} KelanaAI. Dibuat dengan semangat untuk menjelajah.</p>
+        <p>&copy; {new Date().getFullYear()} dhiyasalmas</p>
       </footer>
       
     </div>
