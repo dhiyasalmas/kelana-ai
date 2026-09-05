@@ -473,7 +473,7 @@ export default function KelanaAIPlanner() {
                 <input
                   type="text" name="destination" required
                   value={formData.destination} onChange={handleChange}
-                  placeholder="Contoh: Tokyo, Japan"
+                  placeholder="Contoh: Bandung, Indonesia"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none text-sm"
                 />
               </div>
