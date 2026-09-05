@@ -34,7 +34,7 @@ frontend_url = os.getenv("FRONTEND_URL", "")
 frontend_url2 = os.getenv("FRONTEND_URL2", "")
 
 # Bangun list origins, filter yang kosong/None
-allowed_origins = [url for url in [frontend_url, frontend_url2] if url]
+allowed_origins = [frontend_url, frontend_url2]
 
 # 2. Tambahkan Middleware CORS agar Next.js bisa mengambil data
 app.add_middleware(
