@@ -7,7 +7,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from services.auth_service import SECRET_KEY, ALGORITHM
+#from services.auth_service import SECRET_KEY, ALGORITHM
 from models.user import User
 from services.trip_service import (
     calculate_budget,
@@ -15,9 +15,8 @@ from services.trip_service import (
     recomendation_destination,
     get_travel_season
 )
-from services.auth_service import login_user_service
+from services.auth_service import login_user_service, register_user
 from services.bedrock_service import get_ai_recommendation
-from services.auth_service import register_user
 from models.trip import Trip
 from database import SessionLocal, init_db
 from models.conversation import Conversation, Message
@@ -29,17 +28,15 @@ load_dotenv()
 # 1. Inisialisasi Aplikasi terlebih dahulu
 app = FastAPI()
 
-# Mengambil nilai FRONTEND_URL dari .env
-frontend_url = os.getenv("FRONTEND_URL", "")
-frontend_url2 = os.getenv("FRONTEND_URL2", "")
-
-# Bangun list origins, filter yang kosong/None
-allowed_origins = [frontend_url, frontend_url2]
+# Mengambil nilai dari .env
+frontend_url = os.getenv("FRONTEND_URL")
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
 
 # 2. Tambahkan Middleware CORS agar Next.js bisa mengambil data
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=frontend_url,
     allow_credentials=True,
     allow_methods=["*"],    # Mengizinkan semua method (GET, POST, PUT, DELETE)
     allow_headers=["*"],    # Mengizinkan semua header
@@ -346,7 +343,12 @@ def update_trip(trip_id: int, request: TripUpdateBudget, db: Session = Depends(g
     if trip.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Forbidden: Kamu tidak berhak mengubah trip milik orang lain")
         
+    # KOREKSI: Tambahkan field lainnya agar ter-update di database
     trip.budget = request.budget
+    trip.hotel_cost = request.hotel_cost
+    trip.transportation_cost = request.transportation_cost
+    trip.food_cost = request.food_cost
+    
     db.commit()
     db.refresh(trip)
     return trip

@@ -10,9 +10,9 @@ from dotenv import load_dotenv
 # Memuat variabel environment dari file .env
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "changeme-set-a-strong-secret-in-env")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
 def hash_password(plain_password: str) -> str:
     """Hash a plain-text password using bcrypt. Returns the hash as a UTF-8 string."""
@@ -56,7 +56,7 @@ def login_user_service(db: Session, email: str, password: str):
     
     # 2. Verifikasi password (jika user tidak ada atau password salah, gagalkan)
     if not user or not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Email atau password salah")
+        raise HTTPException(status_code=401, detail="Wrong Email or Password!")
         
     # 3. Generate JWT (Payload berisi ID User dan Waktu Expired)
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)

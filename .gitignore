@@ -1,6 +1,5 @@
 backend/.venv
 backend/.env
-backend/.env.local
 backend/create_db.py
 backend/__pycache__
 backend/services/__pycache__
