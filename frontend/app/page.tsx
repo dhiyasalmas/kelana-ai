@@ -62,6 +62,7 @@ export default function KelanaAIPlanner() {
     travel_style: 'Solo',
   });
 
+
   // Nilai tampilan terformat (string dengan titik ribuan)
   const [displayValues, setDisplayValues] = useState({
     budget: '',
@@ -90,7 +91,7 @@ export default function KelanaAIPlanner() {
   const [baseMessages, setBaseMessages] = useState<Message[]>([
     { 
       role: 'assistant', 
-      content: 'Halo! Aku **Base Model Murni**. Aku menjawab menggunakan pengetahuan umum bawaanku tanpa melihat dokumenmu. Mari kita bandingkan jawabanku!', 
+      content: 'Hello! I\'m the **Pure Base Model**. I answer using my built-in general knowledge without looking at your documents. Let\'s compare my answers!', 
       sources: [],
       created_at: new Date().toISOString()
     }
@@ -123,7 +124,7 @@ export default function KelanaAIPlanner() {
     } else {
       setMessages([{ 
         role: 'assistant', 
-        content: 'Silakan pilih riwayat obrolan di samping, atau klik **+ New Chat** untuk memulai percakapan baru.', 
+        content: 'Please select a conversation history on the side, or click **+ New Chat** to start a new conversation.', 
         sources: [],
         created_at: new Date().toISOString()
       }]);
@@ -174,7 +175,7 @@ export default function KelanaAIPlanner() {
 
     // Validasi max budget hanya untuk field 'budget'
     if (name === 'budget' && num > MAX_BUDGET) {
-      setError(`Budget maksimal adalah Rp ${formatNumber(MAX_BUDGET)}`);
+      setError(`Maximum budget is ${formatNumber(MAX_BUDGET)}`);
       return;
     }
     if (name === 'budget') setError('');
@@ -218,7 +219,7 @@ export default function KelanaAIPlanner() {
         setActiveConvId(newConv.id);
         setMessages([{ 
           role: 'assistant', 
-          content: 'Halo! Aku KelanaAI (RAG). Ruang obrolan baru telah dibuat. Apa yang ingin kamu tanyakan hari ini?', 
+          content: 'Hello! I\'m KelanaAI (RAG). A new chat room has been created. What would you like to ask today?', 
           sources: [],
           created_at: new Date().toISOString()
         }]);
@@ -238,7 +239,7 @@ export default function KelanaAIPlanner() {
       if (res.ok) {
         const data = await res.json();
         setMessages(data.length === 0
-          ? [{ role: 'assistant', content: 'Obrolan ini masih kosong. Silakan mulai bertanya.', sources: [], created_at: new Date().toISOString() }]
+          ? [{ role: 'assistant', content: 'This conversation is empty. Feel free to start asking.', sources: [], created_at: new Date().toISOString() }]
           : data
         );
       }
@@ -264,14 +265,14 @@ export default function KelanaAIPlanner() {
       if (response.status === 401) { handleLogout(); return; }
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Gagal menghubungi AI Server');
+        throw new Error(errorData.detail || 'Failed to connect to AI Server');
       }
       const data = await response.json();
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources, created_at: new Date().toISOString() }]);
       if (conversations.find(c => c.id === activeConvId)?.title === "New Chat") fetchConversations();
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Terjadi kesalahan';
-      setMessages(prev => [...prev, { role: 'assistant', content: `*Maaf, terjadi kesalahan: ${msg}*`, created_at: new Date().toISOString() }]);
+      const msg = error instanceof Error ? error.message : 'An error occurred';
+      setMessages(prev => [...prev, { role: 'assistant', content: `*Sorry, an error occurred: ${msg}*`, created_at: new Date().toISOString() }]);
     } finally {
       setIsAskLoading(false);
     }
@@ -283,13 +284,13 @@ export default function KelanaAIPlanner() {
   const handlePlannerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validasi budget sebelum submit
+    // Validate budget before submit
     if (formData.budget > MAX_BUDGET) {
-      setError(`Budget maksimal adalah Rp ${formatNumber(MAX_BUDGET)}`);
+      setError(`Maximum budget is ${formatNumber(MAX_BUDGET)}`);
       return;
     }
     if (formData.budget <= 0) {
-      setError('Budget harus lebih dari 0');
+      setError('Budget must be greater than 0');
       return;
     }
 
@@ -316,12 +317,12 @@ export default function KelanaAIPlanner() {
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Gagal mendapatkan rekomendasi dari server');
+        throw new Error(errData.detail || 'Failed to get recommendations from server');
       }
       const data = await response.json();
       setResult(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
+      setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -347,13 +348,13 @@ export default function KelanaAIPlanner() {
       if (response.status === 401) { handleLogout(); return; }
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Gagal menghubungi Base Model Server');
+        throw new Error(errorData.detail || 'Failed to connect to Base Model Server');
       }
       const data = await response.json();
       setBaseMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources, created_at: new Date().toISOString() }]);
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Terjadi kesalahan';
-      setBaseMessages(prev => [...prev, { role: 'assistant', content: `*Maaf, terjadi kesalahan: ${msg}*`, created_at: new Date().toISOString() }]);
+      const msg = error instanceof Error ? error.message : 'An error occurred';
+      setBaseMessages(prev => [...prev, { role: 'assistant', content: `*Sorry, an error occurred: ${msg}*`, created_at: new Date().toISOString() }]);
     } finally {
       setIsBaseLoading(false);
     }
@@ -409,71 +410,71 @@ export default function KelanaAIPlanner() {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-        <p className="text-slate-300 font-medium text-sm">Memeriksa akses...</p>
+        <p className="text-slate-300 font-medium text-sm">Checking access...</p>
       </div>
     );
   }
 
-  // Tahun pilihan: tahun ini sampai 5 tahun ke depan
-  const yearOptions = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR + i);
+  // Chat sidebar toggle for mobile
+  const [showSidebar, setShowSidebar] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800">
 
       {/* HEADER HERO */}
-      <header className="relative w-full h-[35vh] md:h-[45vh] bg-slate-900 flex items-center justify-center">
+      <header className="relative w-full h-auto min-h-[280px] md:h-[45vh] bg-slate-900 flex items-center justify-center py-10 md:py-0">
         <img
           src="https://images.unsplash.com/photo-1549473889-14f410d83298?auto=format&fit=crop&w=1920&q=80"
-          alt="Pemandangan Destinasi"
+          alt="Destination View"
           className="absolute inset-0 w-full h-full object-cover opacity-50"
         />
-        <div className="relative z-10 text-center px-4 mt-8">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-4 drop-shadow-lg">
+        <div className="relative z-10 text-center px-4 w-full max-w-3xl mx-auto">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight mb-3 drop-shadow-lg">
             KelanaAI Travel Planner
           </h1>
-          <p className="text-lg md:text-xl text-slate-200 max-w-2xl mx-auto drop-shadow-md mb-8">
-            Rencanakan perjalanan impianmu dengan bantuan kecerdasan buatan.
+          <p className="text-sm sm:text-lg md:text-xl text-slate-200 max-w-2xl mx-auto drop-shadow-md mb-6">
+            Plan your dream trip with the help of artificial intelligence.
           </p>
           {isLoggedIn ? (
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/trips" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-3 rounded-full transition-all shadow-lg text-sm">
-                Lihat Daftar Perjalananku &rarr;
+            <div className="flex flex-wrap justify-center items-center gap-2 sm:gap-3">
+              <Link href="/trips" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2.5 rounded-full transition-all shadow-lg text-xs sm:text-sm">
+                My Trips &rarr;
               </Link>
-              <Link href="/about" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-6 py-3 rounded-full transition-all text-sm">
-                Tentang AI Kami
+              <Link href="/about" className="bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white font-semibold px-4 py-2.5 rounded-full transition-all text-xs sm:text-sm">
+                About AI
               </Link>
-              <Link href="/profile" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white font-semibold px-8 py-3 rounded-full transition-all text-sm">
-                Profil
+              <Link href="/profile" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/30 text-white font-semibold px-5 py-2.5 rounded-full transition-all text-xs sm:text-sm">
+                Profile
               </Link>
-              <button onClick={handleLogout} className="bg-red-500/80 hover:bg-red-600 backdrop-blur-sm border border-red-500/50 text-white font-semibold px-8 py-3 rounded-full transition-all text-sm">
+              <button onClick={handleLogout} className="bg-red-500/80 hover:bg-red-600 backdrop-blur-sm border border-red-500/50 text-white font-semibold px-5 py-2.5 rounded-full transition-all text-xs sm:text-sm">
                 Logout
               </button>
             </div>
           ) : (
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-              <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-10 py-3 rounded-full transition-all shadow-lg text-sm">Login</Link>
-              <Link href="/register" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/50 text-white font-semibold px-10 py-3 rounded-full transition-all text-sm">Daftar Akun</Link>
+            <div className="flex flex-wrap justify-center items-center gap-3">
+              <Link href="/login" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-2.5 rounded-full transition-all shadow-lg text-sm">Login</Link>
+              <Link href="/register" className="bg-white/20 hover:bg-white/30 backdrop-blur-sm border border-white/50 text-white font-semibold px-8 py-2.5 rounded-full transition-all text-sm">Create Account</Link>
             </div>
           )}
         </div>
       </header>
 
-      {/* KONTEN UTAMA */}
-      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 -mt-10 md:-mt-16 relative z-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      {/* MAIN CONTENT */}
+      <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 md:-mt-8 relative z-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
 
-          {/* KOLOM KIRI: FORM TRIP PLANNER */}
-          <div className="lg:col-span-5 bg-white p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 h-fit">
-            <h2 className="text-2xl font-bold mb-6 text-slate-800">Detail Perjalanan</h2>
+          {/* LEFT COLUMN: TRIP PLANNER FORM */}
+          <div className="lg:col-span-5 bg-white p-5 sm:p-6 md:p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 h-fit">
+            <h2 className="text-2xl font-bold mb-6 text-slate-800">Trip Details</h2>
             <form onSubmit={handlePlannerSubmit} className="space-y-5">
 
               {/* Destinasi */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Destinasi</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Destination</label>
                 <input
                   type="text" name="destination" required
                   value={formData.destination} onChange={handleChange}
-                  placeholder="Contoh: Tokyo, Japan"
+                  placeholder="Example: Bandung, Indonesia"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none text-sm"
                 />
               </div>
@@ -481,7 +482,7 @@ export default function KelanaAIPlanner() {
               {/* Durasi + Bulan + Tahun */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Durasi (Hari)</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Duration (Days)</label>
                   <input
                     type="number" name="days" min="1" required
                     value={formData.days} onChange={handleChange}
@@ -489,7 +490,7 @@ export default function KelanaAIPlanner() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Bulan</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Month</label>
                   <select name="travel_month" value={formData.travel_month} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none cursor-pointer text-sm">
                     {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m) => (
                       <option key={m} value={m}>{m}</option>
@@ -497,7 +498,7 @@ export default function KelanaAIPlanner() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Tahun</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Year</label>
                   <select name="travel_year" value={formData.travel_year} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none cursor-pointer text-sm">
                     {yearOptions.map((y) => (
                       <option key={y} value={y}>{y}</option>
@@ -510,52 +511,41 @@ export default function KelanaAIPlanner() {
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1">
                   Total Budget
-                  <span className="ml-2 text-xs font-normal text-slate-400">(maks. Rp 1.000.000.000)</span>
+                  <span className="ml-2 text-xs font-normal text-slate-400">(in destination country currency, max. 1,000,000,000)</span>
                 </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">Rp</span>
-                  <input
-                    type="text"
-                    name="budget"
-                    required
-                    inputMode="numeric"
-                    value={displayValues.budget}
-                    onChange={handleCurrencyChange}
-                    placeholder="0"
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none text-sm"
-                  />
-                </div>
-                {formData.budget > 0 && (
-                  <p className="text-xs text-slate-400 mt-1">
-                    = Rp {formData.budget.toLocaleString('id-ID')}
-                  </p>
-                )}
+                <input
+                  type="text"
+                  name="budget"
+                  required
+                  inputMode="numeric"
+                  value={displayValues.budget}
+                  onChange={handleCurrencyChange}
+                  placeholder="Example: 5,000,000"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                />
               </div>
 
               {/* Estimasi Biaya Harian */}
               <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                <p className="text-sm font-semibold text-slate-700 mb-3">Estimasi Biaya Harian:</p>
+                <p className="text-sm font-semibold text-slate-700 mb-3">Daily Cost Estimates:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {([
-                    { name: 'hotel_cost', label: 'Hotel/Hari' },
-                    { name: 'transportation_cost', label: 'Transport/Hari' },
-                    { name: 'food_cost', label: 'Makan/Hari' },
+                    { name: 'hotel_cost', label: 'Hotel/Day' },
+                    { name: 'transportation_cost', label: 'Transport/Day' },
+                    { name: 'food_cost', label: 'Food/Day' },
                   ] as { name: keyof typeof displayValues; label: string }[]).map(({ name, label }) => (
                     <div key={name}>
                       <label className="block text-xs font-medium text-slate-500 mb-1">{label}</label>
-                      <div className="relative">
-                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
-                        <input
-                          type="text"
-                          name={name}
-                          required
-                          inputMode="numeric"
-                          value={displayValues[name]}
-                          onChange={handleCurrencyChange}
-                          placeholder="0"
-                          className="w-full pl-7 pr-2 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        name={name}
+                        required
+                        inputMode="numeric"
+                        value={displayValues[name]}
+                        onChange={handleCurrencyChange}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none text-sm"
+                      />
                     </div>
                   ))}
                 </div>
@@ -563,12 +553,12 @@ export default function KelanaAIPlanner() {
 
               {/* Gaya Perjalanan */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Gaya Perjalanan</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">Travel Style</label>
                 <select name="travel_style" value={formData.travel_style} onChange={handleChange} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none cursor-pointer text-sm">
-                  <option value="Solo">Solo (Sendirian)</option>
-                  <option value="Couple">Couple (Pasangan)</option>
-                  <option value="Family">Family (Keluarga)</option>
-                  <option value="Friends">Friends (Bersama Teman)</option>
+                  <option value="Solo">Solo</option>
+                  <option value="Couple">Couple</option>
+                  <option value="Family">Family</option>
+                  <option value="Friends">Friends</option>
                 </select>
               </div>
 
@@ -579,7 +569,7 @@ export default function KelanaAIPlanner() {
                 disabled={loading}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md mt-4 disabled:opacity-50 text-sm"
               >
-                {loading ? 'AI Sedang Merencanakan...' : 'Buat Rencana Perjalanan âœˆï¸'}
+                {loading ? 'AI is Planning...' : 'Create Trip Plan âœˆï¸'}
               </button>
             </form>
           </div>
@@ -591,13 +581,13 @@ export default function KelanaAIPlanner() {
               {/* Tab Header */}
               <div className="flex flex-wrap gap-4 border-b border-slate-100 pb-4 mb-4">
                 <button onClick={() => setActiveTab('result')} className={`text-sm md:text-base font-bold transition-colors ${activeTab === 'result' ? 'text-blue-600 border-b-2 border-blue-600 pb-2' : 'text-slate-400 hover:text-slate-600'}`}>
-                  Rekomendasi Trip
+                  Trip Recommendation
                 </button>
                 <button onClick={() => setActiveTab('chat')} className={`text-sm md:text-base font-bold transition-colors flex items-center gap-2 ${activeTab === 'chat' ? 'text-emerald-600 border-b-2 border-emerald-600 pb-2' : 'text-slate-400 hover:text-slate-600'}`}>
-                  ðŸ’¬ Tanya AI (RAG)
+                  Ask AI (RAG)
                 </button>
                 <button onClick={() => setActiveTab('base_model')} className={`text-sm md:text-base font-bold transition-colors flex items-center gap-2 ${activeTab === 'base_model' ? 'text-violet-600 border-b-2 border-violet-600 pb-2' : 'text-slate-400 hover:text-slate-600'}`}>
-                  ðŸ¤– Base Model
+                  Base Model AI
                 </button>
               </div>
 
@@ -607,8 +597,8 @@ export default function KelanaAIPlanner() {
                   {result ? (
                     <div className="space-y-4">
                       <div className="flex flex-wrap gap-3 mb-4">
-                        <span className="bg-blue-100 text-blue-700 font-semibold px-4 py-1.5 rounded-full text-xs">Musim: {result.trip_data?.season || "â€”"}</span>
-                        <span className="bg-emerald-100 text-emerald-700 font-semibold px-4 py-1.5 rounded-full text-xs">Gaya: {result.trip_data?.category || "â€”"}</span>
+                        <span className="bg-blue-100 text-blue-700 font-semibold px-4 py-1.5 rounded-full text-xs">Season: {result.trip_data?.season || "—"}</span>
+                        <span className="bg-emerald-100 text-emerald-700 font-semibold px-4 py-1.5 rounded-full text-xs">Style: {result.trip_data?.category || "—"}</span>
                         <span className="bg-violet-100 text-violet-700 font-semibold px-4 py-1.5 rounded-full text-xs">
                           {result.trip_data?.travel_month || ""} {result.trip_data?.travel_year || ""}
                         </span>
@@ -616,12 +606,12 @@ export default function KelanaAIPlanner() {
                       <div className="mt-2">
                         {result.trip_data?.ai_recommendation
                           ? renderItineraryCards(result.trip_data.ai_recommendation)
-                          : <p className="text-sm text-slate-400 italic">Menunggu rekomendasi AI...</p>}
+                          : <p className="text-sm text-slate-400 italic">Waiting for AI recommendation...</p>}
                       </div>
                     </div>
                   ) : (
                     <div className="flex-grow flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200 h-full min-h-[300px]">
-                      <p className="text-slate-500 italic text-base max-w-sm">Silakan isi form di samping untuk melihat hasil rencana perjalananmu.</p>
+                      <p className="text-slate-500 italic text-base max-w-sm">Fill in the form on the left to see your trip plan results.</p>
                     </div>
                   )}
                 </div>
@@ -640,10 +630,10 @@ export default function KelanaAIPlanner() {
                       {conversations.map(c => (
                         <div key={c.id} onClick={() => setActiveConvId(c.id)} className={`p-3 cursor-pointer border-b border-slate-100 transition-colors ${activeConvId === c.id ? 'bg-emerald-50 border-l-4 border-l-emerald-500' : 'hover:bg-slate-100'}`}>
                           <p className={`text-xs font-bold truncate ${activeConvId === c.id ? 'text-emerald-800' : 'text-slate-700'}`}>{c.title}</p>
-                          <p className="text-xs text-slate-400 mt-1">{new Date(c.created_at).toLocaleDateString('id-ID')}</p>
+                          <p className="text-xs text-slate-400 mt-1">{new Date(c.created_at).toLocaleDateString('en-US')}</p>
                         </div>
                       ))}
-                      {conversations.length === 0 && <p className="text-xs text-slate-400 text-center p-4 italic">Belum ada obrolan.</p>}
+                      {conversations.length === 0 && <p className="text-xs text-slate-400 text-center p-4 italic">No conversations yet.</p>}
                     </div>
                   </div>
                   <div className="w-2/3 md:w-3/4 flex flex-col bg-white">
@@ -667,7 +657,7 @@ export default function KelanaAIPlanner() {
                                 </div>
                                 {msg.sources && msg.sources.length > 0 && (
                                   <div className="mt-2 pt-2 border-t border-slate-100">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ðŸ“– Sumber Referensi:</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ðŸ“– Reference Sources:</p>
                                     <div className="flex flex-wrap gap-1">
                                       {msg.sources.map((src, idx) => (
                                         <span key={idx} className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] px-2 py-1 rounded-md">{src}</span>
@@ -696,8 +686,8 @@ export default function KelanaAIPlanner() {
                     </div>
                     <div className="p-3 border-t border-slate-100 bg-slate-50">
                       <form onSubmit={handleAskSubmit} className="flex gap-2">
-                        <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={activeConvId ? "Ketik pesan..." : "Buat / pilih chat dulu..."} className="flex-grow px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none text-sm transition" disabled={isAskLoading || !activeConvId} />
-                        <button type="submit" disabled={isAskLoading || !query.trim() || !activeConvId} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 text-sm">Kirim</button>
+                        <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={activeConvId ? "Type a message..." : "Create / select a chat first..."} className="flex-grow px-4 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none text-sm transition" disabled={isAskLoading || !activeConvId} />
+                        <button type="submit" disabled={isAskLoading || !query.trim() || !activeConvId} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold transition disabled:opacity-50 text-sm">Send</button>
                       </form>
                     </div>
                   </div>
@@ -744,8 +734,8 @@ export default function KelanaAIPlanner() {
                   </div>
                   <div className="pt-4 mt-auto">
                     <form onSubmit={handleBaseSubmit} className="flex gap-2">
-                      <input type="text" value={baseQuery} onChange={(e) => setBaseQuery(e.target.value)} placeholder="Tanya langsung ke Base Model AI..." className="flex-grow px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-600 outline-none text-sm transition" disabled={isBaseLoading} />
-                      <button type="submit" disabled={isBaseLoading || !baseQuery.trim()} className="bg-violet-600 hover:bg-violet-700 text-white px-5 py-3 rounded-xl font-bold transition disabled:opacity-50 text-sm">Kirim</button>
+                      <input type="text" value={baseQuery} onChange={(e) => setBaseQuery(e.target.value)} placeholder="Ask the Base Model AI directly..." className="flex-grow px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-violet-600 outline-none text-sm transition" disabled={isBaseLoading} />
+                      <button type="submit" disabled={isBaseLoading || !baseQuery.trim()} className="bg-violet-600 hover:bg-violet-700 text-white px-5 py-3 rounded-xl font-bold transition disabled:opacity-50 text-sm">Send</button>
                     </form>
                   </div>
                 </div>
