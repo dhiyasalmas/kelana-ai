@@ -29,15 +29,11 @@ function formatNumber(val: number | string): string {
   return Number(num).toLocaleString('id-ID');
 }
 
-// --- HELPER: Parse string berformat (hapus titik) ke angka ---
-function parseNumber(val: string): number {
-  const cleaned = val.replace(/\./g, '').replace(/,/g, '');
-  const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : num;
-}
-
 const MAX_BUDGET = 1_000_000_000;
 const CURRENT_YEAR = new Date().getFullYear();
+
+// Generate opsi tahun dari tahun saat ini hingga 4 tahun ke depan
+const yearOptions = Array.from({ length: 5 }, (_, i) => CURRENT_YEAR + i);
 
 export default function KelanaAIPlanner() {
   const router = useRouter();
@@ -61,7 +57,6 @@ export default function KelanaAIPlanner() {
     travel_year: CURRENT_YEAR,
     travel_style: 'Solo',
   });
-
 
   // Nilai tampilan terformat (string dengan titik ribuan)
   const [displayValues, setDisplayValues] = useState({
@@ -362,12 +357,13 @@ export default function KelanaAIPlanner() {
 
   // --- RENDER ITINERARY CARDS ---
   const renderItineraryCards = (markdownText: string) => {
-    const splitRegex = /(?=(?:^|\n)(?:###|##|#|\*\*)?\s*(?:âœˆï¸|ðŸ¨|ðŸ“…|ðŸ½ï¸|ðŸ’¡|ðŸ’°|Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion|Transport|Hotel))/i;
+    // Regex di bawah telah diperbaiki dari kerusakan encoding mojibake (menjadi emoji aktual)
+    const splitRegex = /(?=(?:^|\n)(?:###|##|#|\*\*)?\s*(?:✈️|🏨|📅|🍽️|💡|💰|Day \d+|Travel Tips|Local Food|Food Recom|Estimated Budget|Budget Break|Conclusion|Transport|Hotel))/i;
     const sections = markdownText.split(splitRegex);
 
     return sections.map((section, index) => {
       if (!section.trim()) return null;
-      const isMainSection = section.match(/(?:^|\n)(?:###|##|#|\*\*)?\s*(?:âœˆï¸|ðŸ¨|ðŸ“…|ðŸ½ï¸|ðŸ’¡|ðŸ’°|Day \d+|Travel Tips|Local Food|Estimated Budget|Transport|Hotel)/i);
+      const isMainSection = section.match(/(?:^|\n)(?:###|##|#|\*\*)?\s*(?:✈️|🏨|📅|🍽️|💡|💰|Day \d+|Travel Tips|Local Food|Estimated Budget|Transport|Hotel)/i);
 
       if (index === 0 && !isMainSection) {
         return (
@@ -414,9 +410,6 @@ export default function KelanaAIPlanner() {
       </div>
     );
   }
-
-  // Chat sidebar toggle for mobile
-  const [showSidebar, setShowSidebar] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800">
@@ -474,7 +467,7 @@ export default function KelanaAIPlanner() {
                 <input
                   type="text" name="destination" required
                   value={formData.destination} onChange={handleChange}
-                  placeholder="Contoh: Tokyo, Japan"
+                  placeholder="Contoh: Bandung, Indonesia"
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none text-sm"
                 />
               </div>
@@ -569,7 +562,7 @@ export default function KelanaAIPlanner() {
                 disabled={loading}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-md mt-4 disabled:opacity-50 text-sm"
               >
-                {loading ? 'AI is Planning...' : 'Create Trip Plan âœˆï¸'}
+                {loading ? 'AI is Planning...' : 'Create Trip Plan ✈️'}
               </button>
             </form>
           </div>
@@ -657,7 +650,7 @@ export default function KelanaAIPlanner() {
                                 </div>
                                 {msg.sources && msg.sources.length > 0 && (
                                   <div className="mt-2 pt-2 border-t border-slate-100">
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">ðŸ“– Reference Sources:</p>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">📖 Reference Sources:</p>
                                     <div className="flex flex-wrap gap-1">
                                       {msg.sources.map((src, idx) => (
                                         <span key={idx} className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] px-2 py-1 rounded-md">{src}</span>
@@ -748,4 +741,3 @@ export default function KelanaAIPlanner() {
     </div>
   );
 }
-
