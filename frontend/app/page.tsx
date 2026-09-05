@@ -48,6 +48,7 @@ export default function KelanaAIPlanner() {
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     destination: '',
+    origin: '',
     days: 1,
     budget: 0,
     hotel_cost: 0,
@@ -299,6 +300,7 @@ export default function KelanaAIPlanner() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
+          origin: formData.origin,
           destination: formData.destination,
           days: Number(formData.days),
           budget: Number(formData.budget),
@@ -461,15 +463,32 @@ export default function KelanaAIPlanner() {
             <h2 className="text-2xl font-bold mb-6 text-slate-800">Trip Details</h2>
             <form onSubmit={handlePlannerSubmit} className="space-y-5">
 
-              {/* Destinasi */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1">Destination</label>
-                <input
-                  type="text" name="destination" required
-                  value={formData.destination} onChange={handleChange}
-                  placeholder="Contoh: Bandung, Indonesia"
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none text-sm"
-                />
+              {/* Origin dan Destinasi */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Kota Asal</label>
+                  <input 
+                    type="text" 
+                    name="origin" 
+                    required 
+                    value={formData.origin} 
+                    onChange={handleChange} 
+                    placeholder="Contoh: Bekasi" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Destinasi</label>
+                  <input 
+                    type="text" 
+                    name="destination" 
+                    required 
+                    value={formData.destination} 
+                    onChange={handleChange} 
+                    placeholder="Contoh: Bandung" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" 
+                  />
+                </div>
               </div>
 
               {/* Durasi + Bulan + Tahun */}

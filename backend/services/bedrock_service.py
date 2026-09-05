@@ -14,11 +14,11 @@ def get_bedrock_client():
     )
     return client
 
-def get_ai_recommendation(days: int, destination: str, budget: float, travel_style: str, travel_year: int = 2025):
+def get_ai_recommendation(days: int, origin:str, destination: str, budget: float, travel_style: str, travel_year: int = 2025):
     client = get_bedrock_client()
     prompt = f"""You are an expert travel planner with deep knowledge of hotels, transport, and local experiences.
 
-Plan a detailed {days}-day trip to {destination} in {travel_year}.
+Plan a detailed {days}-day trip from {origin} to {destination} in {travel_year}.
 Daily Budget per person: {budget} (use the currency of the destination country).
 Travel Style: {travel_style}.
 
@@ -46,7 +46,7 @@ For each day (Day 1 through Day {days}), provide:
 - Include local transport tips for getting around each day (taxi, MRT, tuk-tuk, etc. with estimated cost)
 
 ## 🍽️ Local Food Recommendations
-- List 5-7 must-try dishes with the name of a specific restaurant and its address where to find them.
+- List 5-7 must-try dishes from {destination} with the name of a specific restaurant and its address where to find them.
 
 ## 💡 Travel Tips
 - Best time to visit in {travel_year}

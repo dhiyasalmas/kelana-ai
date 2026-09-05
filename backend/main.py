@@ -45,6 +45,7 @@ app.add_middleware(
 # 3. Pydantic Models
 class TripRequest(BaseModel):
     destination: str
+    origin: str
     days: int
     budget: float
     hotel_cost: float
@@ -211,6 +212,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db), current_use
     # Panggil AI Recommendation dari AWS Bedrock
     ai_itinerary = get_ai_recommendation(
         days=request.days,
+        origin=request.origin,
         destination=request.destination,
         budget=budget_perday,
         travel_style=f"{request.travel_style} Travel, {category} Budget",
@@ -220,6 +222,7 @@ def create_trip(request: TripRequest, db: Session = Depends(get_db), current_use
     # Simpan ke Database
     trip = Trip(
         destination=request.destination,
+        origin=request.origin,
         days=request.days,
         budget=request.budget,
         hotel_cost=request.hotel_cost,

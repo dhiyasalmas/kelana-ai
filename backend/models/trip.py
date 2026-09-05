@@ -10,6 +10,7 @@ class Trip(Base):
     id                   = Column(Integer, primary_key=True, index=True)
     user_id              = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     destination          = Column(String,  nullable=False)
+    origin               = Column(String,  nullable=False)
     days                 = Column(Integer, nullable=False)
     budget               = Column(Float,   nullable=False)
     hotel_cost           = Column(Float,   nullable=True) 

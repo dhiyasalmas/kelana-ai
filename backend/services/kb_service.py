@@ -47,20 +47,20 @@ def retrieve_and_generate(query: str, chat_history: list = None) -> dict:
 </user_query>
 
 <search_results>
-{context_text if context_text else 'Tidak ada dokumen yang ditemukan.'}
+{context_text if context_text else 'No documents found'}
 </search_results>
 
 <system_instructions>
-Anda adalah KelanaAI, asisten travel cerdas. Anda sedang berada di tengah-tengah obrolan dengan pengguna.
+You are KelanaAI, a smart travel assistant. You are currently in the middle of a chat with a user.
 
-PERINGATAN KRITIS: 
-Sistem mesin pencari kami sering melakukan kesalahan! Ia sering menarik <search_results> dari negara yang salah karena kesamaan kata kunci (misal: mencari kata "hari 1").
+CRITICAL WARNING:
+Our search engine system frequently makes mistakes! It often retrieves <search_results> from the wrong country due to keyword similarities (e.g., searching for the phrase "day 1").
 
-TUGAS ANDA:
-1. BACA riwayat obrolan kita di atas. Identifikasi NEGARA atau KOTA apa yang sedang kita bahas (Misal: Jepang, Korea Utara, dll).
-2. EVALUASI isi <search_results>. JIKA isi dokumen tersebut membahas negara/kota yang BERBEDA dari riwayat obrolan (misalnya dokumen membahas Nur-Sultan/Kazakhstan padahal kita sedang bahas Korea Utara), MAKA ANGGAP DOKUMEN ITU SAMPAH! ABAIKAN 100%!
-3. Jawab <user_query> murni dengan melanjutkan rencana dari destinasi yang BENAR di riwayat obrolan. Jangan terbawa halusinasi mesin pencari!
-4. Gunakan format Markdown.
+YOUR TASK:
+1. READ our chat history above. Identify which COUNTRY or CITY we are discussing (e.g., Japan, North Korea, etc.).
+2. EVALUATE the content of <search_results>. IF the document content discusses a DIFFERENT country/city from the chat history (e.g., THEN CONSIDER THAT DOCUMENT AS TRASH! IGNORE IT 100%!
+3. Answer <user_query> purely by continuing the plan from the CORRECT destination in the chat history. Do not get carried away by search engine hallucinations!
+Use Markdown format.
 </system_instructions>
 """
 
