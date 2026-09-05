@@ -466,26 +466,26 @@ export default function KelanaAIPlanner() {
               {/* Origin dan Destinasi */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Kota Asal</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Origin</label>
                   <input 
                     type="text" 
                     name="origin" 
                     required 
                     value={formData.origin} 
                     onChange={handleChange} 
-                    placeholder="Contoh: Bekasi" 
+                    placeholder="Example: Bandung, Indonesia" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" 
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Destinasi</label>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">Destination</label>
                   <input 
                     type="text" 
                     name="destination" 
                     required 
                     value={formData.destination} 
                     onChange={handleChange} 
-                    placeholder="Contoh: Bandung" 
+                    placeholder="Example: Oregon, US" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-600 outline-none" 
                   />
                 </div>
